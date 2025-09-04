@@ -49,7 +49,7 @@ const SuperAdminDashboard = () => {
       if (!user) navigate('/');
       else {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (!userDoc.exists() || userDoc.data().role !== 'super_admin') {
+        if (!userDoc.exists() || userDoc.data().role !== 'SUPER_ADMIN') {
           signOut(auth);
           navigate('/');
         }
@@ -157,6 +157,7 @@ const SuperAdminDashboard = () => {
     XLSX.writeFile(wb, 'issues_report.xlsx');
   };
 
+
   // Stats
   const totalIssues = issues.length;
   const newIssues = issues.filter(i => i.status === 'New').length;
@@ -181,7 +182,18 @@ const SuperAdminDashboard = () => {
   };
 
   // Heatmap Data
-  const heatmapData = issues.map(i => new window.google.maps.LatLng(i.location.lat, i.location.lng));
+//   const heatmapData = issues.map(i => new window.google.maps.LatLng(i.location.lat, i.location.lng));
+
+
+  // Add this inside your component
+const [heatmapData, setHeatmapData] = useState([]);
+
+useEffect(() => {
+  if (window.google && issues.length > 0) {
+    const data = issues.map(i => new window.google.maps.LatLng(i.location.lat, i.location.lng));
+    setHeatmapData(data);
+  }
+}, [issues]);
 
   if (loading) return <Typography>Loading...</Typography>;
 

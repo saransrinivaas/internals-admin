@@ -38,12 +38,15 @@ const Login = () => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-      if (userDoc.exists() && userDoc.data().role === 'super_admin') {
-        navigate('/dashboard');
-      } else {
-        setError('Access denied. Only Super Admin can log in.');
-        await signOut(auth);
-      }
+      if (userDoc.exists() && userDoc.data().role === 'SUPER_ADMIN') {
+  console.log("✅ Role check passed, navigating to dashboard...");
+  navigate('/dashboard');
+} else {
+  console.log("❌ Role check failed. Found role:", userDoc.data().role);
+  setError('Access denied. Only Super Admin can log in.');
+  await signOut(auth);
+}
+
     } catch (err) {
       setError('Invalid email or password.');
     }
