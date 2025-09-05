@@ -1,336 +1,261 @@
-import React, { useEffect, useState } from 'react';
-import { auth, db } from '../firebase';
-import { collection, getDocs, getDoc, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signOut, sendSignInLinkToEmail } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
-import { GoogleMap, LoadScript, HeatmapLayer } from '@react-google-maps/api';
-import { Bar, Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend } from 'chart.js';
-import { jsPDF } from 'jspdf';
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
-import { motion } from 'framer-motion';
-import { Container, Tabs, Tab, Box, Typography, Button, TextField, Table, TableBody, TableCell, TableHead, TableRow, Paper, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import React, { useState, useEffect } from "react";
+import { Box , Typography } from "@mui/material";
+import { signOut as firebaseSignOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
+// Import your section components here (or inline as needed)
+import Dashboard from "./Dashboard";
+import Departments from "./Departments";
+import Users from "./Users";
+import Reports from "./Reports";
 
-const containerStyle = { width: '100%', height: '400px' };
-const center = { lat: 37.7749, lng: -122.4194 }; // San Francisco
+import { auth, db } from "../firebase";
+import { collection, getDocs, deleteDoc, doc, setDoc } from "firebase/firestore";
+import {
+  ChartBarIcon,
+  BuildingOffice2Icon,
+  UserGroupIcon,
+  DocumentArrowDownIcon,
+  Cog6ToothIcon,
+} from "@heroicons/react/24/outline";
 
-// Olive Green Theme
-const OliveBox = styled(Box)(({ theme }) => ({
-  backgroundColor: '#3C4F2F', // Olive Green
-  color: '#FFFFFF',
-  padding: theme.spacing(3),
-  borderRadius: theme.spacing(1),
-}));
+const C = {
+  olive: "#3b5d3a",
+  oliveDark: "#2e472d",
+  oliveLight: "#486a3e",
+  textLight: "#ffffff",
+  bg: "#f5f7f5",
+  accent: "#6B8A47",
+};
 
-const OliveButton = styled(Button)(({ theme }) => ({
-  backgroundColor: '#6B8A47',
-  color: '#FFFFFF',
-  '&:hover': { backgroundColor: '#556B2F' },
-}));
+const SB_ICONS = {
+  dashboard: ChartBarIcon,
+  departments: BuildingOffice2Icon,
+  users: UserGroupIcon,
+  reports: DocumentArrowDownIcon,
+  settings: Cog6ToothIcon,
+};
 
-const SuperAdminDashboard = () => {
+const menuItems = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "departments", label: "Departments" },
+  { key: "users", label: "Users" },
+  { key: "reports", label: "Reports" },
+  { key: "settings", label: "Settings" },
+];
+
+// Inline ErrorBoundary component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("Caught error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Box sx={{ padding: 3, color: "red" }}>
+          <Typography variant="h5" gutterBottom>Something went wrong.</Typography>
+          <pre>{this.state.error && this.state.error.toString()}</pre>
+        </Box>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function SuperAdminDashboard() {
+  const [tab, setTab] = useState("dashboard");
   const [issues, setIssues] = useState([]);
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tabValue, setTabValue] = useState(0);
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserRole, setNewUserRole] = useState('staff');
-  const [newDeptName, setNewDeptName] = useState('');
-  const [newRoutingRule, setNewRoutingRule] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) navigate('/');
-      else {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (!userDoc.exists() || userDoc.data().role !== 'SUPER_ADMIN') {
-          signOut(auth);
-          navigate('/');
-        }
+    const fetchData = async () => {
+      try {
+        const issuesSnap = await getDocs(collection(db, "issues"));
+        const usersSnap = await getDocs(collection(db, "users"));
+        const deptsSnap = await getDocs(collection(db, "departments"));
+
+        setIssues(issuesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setUsers(usersSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setDepartments(deptsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      } catch (error) {
+        console.error("Error fetching data: ", error);
       }
+    };
+
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        navigate("/");
+        return;
+      }
+      fetchData();
     });
 
-    const fetchData = async () => {
-      const issuesSnap = await getDocs(collection(db, 'issues'));
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const deptsSnap = await getDocs(collection(db, 'departments'));
-      setIssues(issuesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setUsers(usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setDepartments(deptsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setLoading(false);
-    };
-    fetchData();
-
-    return unsubscribe;
+    return () => unsubscribe();
   }, [navigate]);
 
-  // Invite User via Email
-  const handleInviteUser = async () => {
-    try {
-      const actionCodeSettings = {
-        url: 'http://localhost:3000', // Update to your app's URL
-        handleCodeInApp: true,
-      };
-      await sendSignInLinkToEmail(auth, newUserEmail, actionCodeSettings);
-      alert(`Invite sent to ${newUserEmail}!`);
-      await setDoc(doc(db, 'users', newUserEmail), {
-        email: newUserEmail,
-        role: newUserRole,
-        department: null,
-      });
-      setNewUserEmail('');
-      setNewUserRole('staff');
-    } catch (err) {
-      alert(`Error: ${err.message}`);
-    }
+  // Your existing handlers here ...
+  const handleAddDepartment = async (name, routingRule) => { /*...*/ };
+  const handleDeleteDepartment = async (id) => { /*...*/ };
+  const handleInviteUser = async (email, role) => { /*...*/ };
+  const generatePDF = () => alert("Generate PDF called");
+  const generateCSV = () => alert("Generate CSV called");
+  const generateExcel = () => alert("Generate Excel called");
+  const handleLogout = () => {
+    firebaseSignOut(auth);
+    navigate("/");
   };
-
-  // Add Department
-  const handleAddDepartment = async () => {
-    try {
-      const deptId = `dept_${Date.now()}`;
-      await setDoc(doc(db, 'departments', deptId), {
-        name: newDeptName,
-        routing_rules: newRoutingRule ? [{ category: newRoutingRule, auto_assign: true }] : [],
-      });
-      setDepartments([...departments, { id: deptId, name: newDeptName, routing_rules: newRoutingRule ? [{ category: newRoutingRule, auto_assign: true }] : [] }]);
-      setNewDeptName('');
-      setNewRoutingRule('');
-    } catch (err) {
-      alert(`Error: ${err.message}`);
-    }
-  };
-
-  // Delete Department
-  const handleDeleteDepartment = async (deptId) => {
-    try {
-      await deleteDoc(doc(db, 'departments', deptId));
-      setDepartments(departments.filter(d => d.id !== deptId));
-    } catch (err) {
-      alert(`Error: ${err.message}`);
-    }
-  };
-
-  // Generate PDF Report
-  const generatePDF = () => {
-    const doc = new jsPDF();
-    doc.text('City Issues Report', 10, 10);
-    issues.forEach((issue, i) => {
-      doc.text(`${i + 1}. ${issue.category} - ${issue.status} (${issue.priority})`, 10, 20 + i * 10);
-    });
-    doc.save('issues_report.pdf');
-  };
-
-  // Generate CSV
-  const generateCSV = () => {
-    const csvData = issues.map(issue => ({
-      Category: issue.category,
-      Status: issue.status,
-      Priority: issue.priority,
-      Location: `Lat: ${issue.location.lat}, Lng: ${issue.location.lng}`,
-    }));
-    const csv = Papa.unparse(csvData);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'issues_report.csv';
-    a.click();
-  };
-
-  // Generate Excel
-  const generateExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(issues.map(issue => ({
-      Category: issue.category,
-      Status: issue.status,
-      Priority: issue.priority,
-      Location: `Lat: ${issue.location.lat}, Lng: ${issue.location.lng}`,
-    })));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Issues');
-    XLSX.writeFile(wb, 'issues_report.xlsx');
-  };
-
-
-  // Stats
-  const totalIssues = issues.length;
-  const newIssues = issues.filter(i => i.status === 'New').length;
-  const inProgress = issues.filter(i => i.status === 'In Progress').length;
-  const resolved = issues.filter(i => i.status === 'Resolved').length;
-
-  // Top 5 Categories
-  const categories = issues.reduce((acc, i) => {
-    acc[i.category] = (acc[i.category] || 0) + 1;
-    return acc;
-  }, {});
-  const topCategories = Object.entries(categories).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const barData = {
-    labels: topCategories.map(([cat]) => cat),
-    datasets: [{ label: 'Volume', data: topCategories.map(([, count]) => count), backgroundColor: '#6B8A47' }],
-  };
-
-  // Resolution Performance (Mock SLA)
-  const lineData = {
-    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-    datasets: [{ label: 'SLA %', data: [85, 90, 95, 88], borderColor: '#6B8A47' }],
-  };
-
-  // Heatmap Data
-//   const heatmapData = issues.map(i => new window.google.maps.LatLng(i.location.lat, i.location.lng));
-
-
-  // Add this inside your component
-const [heatmapData, setHeatmapData] = useState([]);
-
-useEffect(() => {
-  if (window.google && issues.length > 0) {
-    const data = issues.map(i => new window.google.maps.LatLng(i.location.lat, i.location.lng));
-    setHeatmapData(data);
-  }
-}, [issues]);
-
-  if (loading) return <Typography>Loading...</Typography>;
 
   return (
-    <Container>
-      <OliveBox>
-        <Typography variant="h4">Super Admin Dashboard</Typography>
-        <OliveButton onClick={() => signOut(auth).then(() => navigate('/'))}>Logout</OliveButton>
-      </OliveBox>
+    <ErrorBoundary>
+      <Box
+        sx={{
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          bgcolor: C.bg,
+        }}
+      >
+        {/* Header */}
+        <Box
+          sx={{
+            backgroundColor: C.olive,
+            color: C.textLight,
+            px: 3,
+            py: 2,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
+            Super Admin Dashboard
+          </Typography>
+          <button
+            onClick={handleLogout}
+            style={{
+              backgroundColor: "#6B8A47",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "8px 16px",
+              cursor: "pointer",
+              fontWeight: 500,
+              fontSize: 14,
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#556B2F")}
+            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#6B8A47")}
+          >
+            Logout
+          </button>
+        </Box>
 
-      <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ backgroundColor: '#3C4F2F', color: '#FFFFFF' }}>
-        <Tab label="Dashboard" />
-        <Tab label="Departments" />
-        <Tab label="Users" />
-        <Tab label="Reports" />
-      </Tabs>
+        {/* Main Layout */}
+        <Box
+          sx={{
+            display: "flex",
+            flexGrow: 1,
+            height: "calc(100vh - 64px)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Sidebar */}
+          <nav
+            style={{
+              background: C.olive,
+              minWidth: 220,
+              color: C.textLight,
+              height: "100%",
+              overflowY: "auto",
+              userSelect: "none",
+            }}
+          >
+            <Box
+              sx={{
+                fontWeight: 800,
+                padding: "22px 32px",
+                letterSpacing: ".7px",
+                fontSize: 22,
+                borderBottom: `2px solid ${C.oliveDark}`,
+              }}
+            >
+              Civic Admin Portal
+            </Box>
+            <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+              {menuItems.map(({ key, label }) => {
+                const Icon = SB_ICONS[key];
+                const active = tab === key;
+                return (
+                  <li
+                    key={key}
+                    onClick={() => setTab(key)}
+                    style={{
+                      padding: "13px 32px",
+                      cursor: "pointer",
+                      background: active ? C.oliveDark : "transparent",
+                      fontWeight: active ? 700 : 500,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      borderLeft: active ? `5px solid ${C.accent}` : "5px solid transparent",
+                      transition: "background-color 0.2s ease",
+                      userSelect: "none",
+                    }}
+                    onMouseOver={(e) => {
+                      if (!active) e.currentTarget.style.backgroundColor = C.oliveLight;
+                    }}
+                    onMouseOut={(e) => {
+                      if (!active) e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    <Icon style={{ width: 22, height: 22, opacity: active ? 1 : 0.85 }} />
+                    {label}
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
 
-      {tabValue === 0 && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <OliveBox>
-            <Typography variant="h5">Total Issues</Typography>
-            <Typography>New: {newIssues} | In Progress: {inProgress} | Resolved: {resolved}</Typography>
-          </OliveBox>
-          <OliveBox>
-            <Typography variant="h5">City Hotspots</Typography>
-            <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={['visualization']}>
-              <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={10}>
-                <HeatmapLayer data={heatmapData} options={{ radius: 20 }} />
-              </GoogleMap>
-            </LoadScript>
-          </OliveBox>
-          <OliveBox>
-            <Typography variant="h5">Top 5 Categories by Volume</Typography>
-            <Bar data={barData} options={{ responsive: true }} />
-          </OliveBox>
-          <OliveBox>
-            <Typography variant="h5">Resolution Performance (SLA %)</Typography>
-            <Line data={lineData} options={{ responsive: true }} />
-          </OliveBox>
-        </motion.div>
-      )}
-
-      {tabValue === 1 && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <OliveBox>
-            <Typography variant="h5">Departments</Typography>
-            <TextField
-              label="Department Name"
-              value={newDeptName}
-              onChange={(e) => setNewDeptName(e.target.value)}
-              sx={{ marginRight: 2 }}
-            />
-            <TextField
-              label="Routing Rule (Category)"
-              value={newRoutingRule}
-              onChange={(e) => setNewRoutingRule(e.target.value)}
-            />
-            <OliveButton onClick={handleAddDepartment}>Add Department</OliveButton>
-            <Table component={Paper}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Routing Rules</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {departments.map(dept => (
-                  <TableRow key={dept.id}>
-                    <TableCell>{dept.name}</TableCell>
-                    <TableCell>{dept.routing_rules.map(r => r.category).join(', ')}</TableCell>
-                    <TableCell>
-                      <OliveButton onClick={() => handleDeleteDepartment(dept.id)}>Delete</OliveButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </OliveBox>
-        </motion.div>
-      )}
-
-      {tabValue === 2 && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <OliveBox>
-            <Typography variant="h5">Users</Typography>
-            <TextField
-              label="Invite Email"
-              value={newUserEmail}
-              onChange={(e) => setNewUserEmail(e.target.value)}
-              sx={{ marginRight: 2 }}
-            />
-            <FormControl sx={{ minWidth: 120 }}>
-              <InputLabel>Role</InputLabel>
-              <Select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)}>
-                <MenuItem value="staff">Staff</MenuItem>
-                <MenuItem value="dept_head">Department Head</MenuItem>
-                <MenuItem value="super_admin">Super Admin</MenuItem>
-              </Select>
-            </FormControl>
-            <OliveButton onClick={handleInviteUser}>Invite User</OliveButton>
-            <Table component={Paper}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Department</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {users.map(user => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.name || 'N/A'}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.role}</TableCell>
-                    <TableCell>{user.department || 'N/A'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </OliveBox>
-        </motion.div>
-      )}
-
-      {tabValue === 3 && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <OliveBox>
-            <Typography variant="h5">Reports</Typography>
-            <OliveButton onClick={generatePDF}>Download PDF Report</OliveButton>
-            <OliveButton onClick={generateCSV}>Export CSV</OliveButton>
-            <OliveButton onClick={generateExcel}>Export Excel</OliveButton>
-          </OliveBox>
-        </motion.div>
-      )}
-    </Container>
+          {/* Content */}
+          <Box
+            sx={{
+              flex: 1,
+              padding: 4,
+              overflowY: "auto",
+              height: "100%",
+              boxSizing: "border-box",
+              backgroundColor: C.bg,
+            }}
+          >
+            {tab === "dashboard" && <Dashboard issues={issues} />}
+            {tab === "departments" && (
+              <Departments
+                departments={departments}
+                addDepartment={handleAddDepartment}
+                deleteDepartment={handleDeleteDepartment}
+              />
+            )}
+            {tab === "users" && <Users users={users} inviteUser={handleInviteUser} />}
+            {tab === "reports" && (
+              <Reports
+                generatePDF={generatePDF}
+                generateCSV={generateCSV}
+                generateExcel={generateExcel}
+              />
+            )}
+            {tab === "settings" && <div>Settings content here</div>}
+          </Box>
+        </Box>
+      </Box>
+    </ErrorBoundary>
   );
-};
-
-export default SuperAdminDashboard;
+}
