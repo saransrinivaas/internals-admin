@@ -31,8 +31,9 @@ const OliveButton = styled(Button)({
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
   fontWeight: 600,
-  color: "#3b5d3a",
+  color: "#3b5a40",
   borderBottom: `1px solid ${theme.palette.divider}`,
+  verticalAlign: "middle",
 }));
 
 const StyledTableRow = styled(TableRow)({
@@ -44,89 +45,101 @@ const StyledTableRow = styled(TableRow)({
 export default function Departments({ departments = [], addDepartment, deleteDepartment }) {
   const [newDeptName, setNewDeptName] = useState("");
   const [newRoutingRule, setNewRoutingRule] = useState("");
+  const [newDeptPassword, setNewDeptPassword] = useState("");
 
   const handleAdd = () => {
-    if (newDeptName.trim() === "") return; // basic validation
-    addDepartment(newDeptName.trim(), newRoutingRule.trim());
+    if (!newDeptName.trim()) return;
+    addDepartment(newDeptName.trim(), newRoutingRule.trim(), newDeptPassword);
     setNewDeptName("");
     setNewRoutingRule("");
+    setNewDeptPassword("");
   };
 
   return (
-    <Box 
+    <Box
       sx={{
         backgroundColor: "#fff",
         borderRadius: 3,
         padding: 4,
-        boxShadow: "0 5px 15px rgba(60,79,47,0.15)",
-        maxWidth: 900,
+        boxShadow: "0 5px 15px rgba(86,119,69,0.3)",
+        maxWidth: 1000,
         margin: "auto",
+        minHeight: 500,
       }}
     >
-      <Typography 
-        variant="h5" 
-        fontWeight="bold" 
-        color="#3b5d3a" 
+      <Typography
+        variant="h5"
+        fontWeight="bold"
+        color="#3b5a40"
         gutterBottom
         sx={{ letterSpacing: 1 }}
       >
         Departments
       </Typography>
 
-      <Box 
-        sx={{ 
-          display: "flex", 
-          gap: 2, 
-          flexWrap: "wrap", 
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          flexWrap: "wrap",
           marginBottom: 3,
-          alignItems: "center"
+          alignItems: "center",
         }}
       >
         <TextField
           label="Department Name"
           value={newDeptName}
           onChange={(e) => setNewDeptName(e.target.value)}
-          sx={{ flexGrow: 1, minWidth: 240 }}
+          sx={{ flexGrow: 1, minWidth: 220 }}
           size="small"
         />
         <TextField
           label="Routing Rule (Category)"
           value={newRoutingRule}
           onChange={(e) => setNewRoutingRule(e.target.value)}
-          sx={{ flexGrow: 1, minWidth: 240 }}
+          sx={{ flexGrow: 1, minWidth: 220 }}
           size="small"
+        />
+        <TextField
+          label="Password"
+          type="password"
+          value={newDeptPassword}
+          onChange={(e) => setNewDeptPassword(e.target.value)}
+          sx={{ flexGrow: 1, minWidth: 220 }}
+          size="small"
+          autoComplete="new-password"
         />
         <OliveButton onClick={handleAdd}>Add Department</OliveButton>
       </Box>
 
-      <TableContainer component={Paper} sx={{ boxShadow: "0 4px 12px rgba(60,79,47,0.12)" }}>
+      <TableContainer component={Paper} sx={{ boxShadow: "0 6px 18px rgba(86,119,69,0.3)" }}>
         <Table>
-          <TableHead sx={{ backgroundColor: "#e6f4ea" }}>
+          <TableHead sx={{ backgroundColor: "#cad7b3" }}>
             <TableRow>
-              <StyledTableCell>Name</StyledTableCell>
-              <StyledTableCell>Routing Rules</StyledTableCell>
-              <StyledTableCell align="center">Actions</StyledTableCell>
+              <StyledTableCell sx={{ width: "35%" }}>Name</StyledTableCell>
+              <StyledTableCell sx={{ width: "50%" }}>Routing Rules</StyledTableCell>
+              <StyledTableCell sx={{ width: "15%" }} align="center">Actions</StyledTableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {departments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} align="center" sx={{ fontStyle: "italic", color: "#6b7280" }}>
+                <TableCell colSpan={3} align="center" sx={{ fontStyle: "italic", color: "#7a8a65" }}>
                   No departments found.
                 </TableCell>
               </TableRow>
             ) : (
               departments.map((dept) => (
                 <StyledTableRow key={dept.id}>
-                  <TableCell sx={{ fontWeight: 700, color: "#3b5d3a" }}>{dept.name}</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: "#3b5a40" }}>{dept.name}</TableCell>
                   <TableCell>
                     {dept.routing_rules?.map((r) => r.category).join(", ") || "—"}
                   </TableCell>
                   <TableCell align="center">
                     <Tooltip title="Delete Department">
-                      <IconButton 
-                        size="small" 
-                        color="error" 
+                      <IconButton
+                        size="small"
+                        color="error"
                         onClick={() => deleteDepartment(dept.id)}
                       >
                         <DeleteIcon fontSize="small" />

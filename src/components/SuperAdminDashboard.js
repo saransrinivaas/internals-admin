@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Box , Typography } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 
-// Import your section components here (or inline as needed)
 import Dashboard from "./Dashboard";
 import Departments from "./Departments";
 import Users from "./Users";
@@ -44,7 +43,7 @@ const menuItems = [
   { key: "settings", label: "Settings" },
 ];
 
-// Inline ErrorBoundary component
+// Error Boundary component
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -60,7 +59,9 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <Box sx={{ padding: 3, color: "red" }}>
-          <Typography variant="h5" gutterBottom>Something went wrong.</Typography>
+          <Typography variant="h5" gutterBottom>
+            Something went wrong.
+          </Typography>
           <pre>{this.state.error && this.state.error.toString()}</pre>
         </Box>
       );
@@ -102,13 +103,46 @@ export default function SuperAdminDashboard() {
     return () => unsubscribe();
   }, [navigate]);
 
-  // Your existing handlers here ...
-  const handleAddDepartment = async (name, routingRule) => { /*...*/ };
-  const handleDeleteDepartment = async (id) => { /*...*/ };
-  const handleInviteUser = async (email, role) => { /*...*/ };
+  // Add Department handler (include password for your dept component)
+  const handleAddDepartment = async (name, routingRule, password) => {
+    try {
+      const deptId = `dept_${Date.now()}`;
+      const routing_rules = routingRule ? [{ category: routingRule, auto_assign: true }] : [];
+      await setDoc(doc(db, "departments", deptId), {
+        name,
+        routing_rules,
+        password,
+      });
+      setDepartments((prev) => [...prev, { id: deptId, name, routing_rules, password }]);
+    } catch (err) {
+      alert("Error adding department: " + err.message);
+    }
+  };
+
+  // Delete Department handler
+  const handleDeleteDepartment = async (id) => {
+    try {
+      await deleteDoc(doc(db, "departments", id));
+      setDepartments((prev) => prev.filter((d) => d.id !== id));
+    } catch (err) {
+      alert("Error deleting department: " + err.message);
+    }
+  };
+
+  // Invite user handler
+  const handleInviteUser = async (email, role) => {
+    try {
+      await setDoc(doc(db, "users", email), { email, role, department: null });
+      alert(`Invited user: ${email}`);
+    } catch (err) {
+      alert("Error inviting user: " + err.message);
+    }
+  };
+
   const generatePDF = () => alert("Generate PDF called");
   const generateCSV = () => alert("Generate CSV called");
   const generateExcel = () => alert("Generate Excel called");
+
   const handleLogout = () => {
     firebaseSignOut(auth);
     navigate("/");
@@ -140,25 +174,21 @@ export default function SuperAdminDashboard() {
           <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
             Super Admin Dashboard
           </Typography>
-          <button
+          <Button
             onClick={handleLogout}
-            style={{
+            sx={{
               backgroundColor: "#6B8A47",
               color: "white",
-              border: "none",
-              borderRadius: 6,
-              padding: "8px 16px",
-              cursor: "pointer",
+              borderRadius: 1,
+              px: 3,
               fontWeight: 500,
               fontSize: 14,
+              "&:hover": { backgroundColor: "#556B2F" },
             }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#556B2F")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#6B8A47")}
           >
             Logout
-          </button>
+          </Button>
         </Box>
-
         {/* Main Layout */}
         <Box
           sx={{
@@ -224,7 +254,6 @@ export default function SuperAdminDashboard() {
               })}
             </ul>
           </nav>
-
           {/* Content */}
           <Box
             sx={{
@@ -252,7 +281,11 @@ export default function SuperAdminDashboard() {
                 generateExcel={generateExcel}
               />
             )}
-            {tab === "settings" && <div>Settings content here</div>}
+            {tab === "settings" && (
+              <Box sx={{ p: 4 }}>
+                <Typography variant="h6">Settings content here</Typography>
+              </Box>
+            )}
           </Box>
         </Box>
       </Box>
