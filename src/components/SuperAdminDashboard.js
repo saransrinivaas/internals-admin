@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Box , Typography } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 
-// Import your section components here (or inline as needed)
 import Dashboard from "./Dashboard";
 import Departments from "./Departments";
 import Users from "./Users";
@@ -44,7 +43,7 @@ const menuItems = [
   { key: "settings", label: "Settings" },
 ];
 
-// Inline ErrorBoundary component
+// Inline error boundary for runtime error capture
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -54,14 +53,14 @@ class ErrorBoundary extends React.Component {
     return { hasError: true, error };
   }
   componentDidCatch(error, errorInfo) {
-    console.error("Caught error:", error, errorInfo);
+    console.error("Error caught in ErrorBoundary:", error, errorInfo);
   }
   render() {
     if (this.state.hasError) {
       return (
-        <Box sx={{ padding: 3, color: "red" }}>
+        <Box sx={{ p: 3, color: "red" }}>
           <Typography variant="h5" gutterBottom>Something went wrong.</Typography>
-          <pre>{this.state.error && this.state.error.toString()}</pre>
+          <pre>{this.state.error?.toString()}</pre>
         </Box>
       );
     }
@@ -102,13 +101,60 @@ export default function SuperAdminDashboard() {
     return () => unsubscribe();
   }, [navigate]);
 
-  // Your existing handlers here ...
-  const handleAddDepartment = async (name, routingRule) => { /*...*/ };
-  const handleDeleteDepartment = async (id) => { /*...*/ };
-  const handleInviteUser = async (email, role) => { /*...*/ };
+  // Add Department with auto-generated deptHead and email
+  const handleAddDepartment = async (name, routingRule, password) => {
+    if (!name) {
+      alert("Department name is required");
+      return;
+    }
+    try {
+      const deptId = `dept_${Date.now()}`;
+      const routing_rules = routingRule ? [{ category: routingRule, auto_assign: true }] : [];
+      const normalized = name.toLowerCase().replace(/\s+/g, "");
+      const departmentHead = `${normalized}depthead`;
+      const email = `${departmentHead}@city.gov.in`;
+      await setDoc(doc(db, "departments", deptId), {
+        name,
+        routing_rules,
+        password,
+        departmentHead,
+        email,
+      });
+      setDepartments(prev => [...prev, { id: deptId, name, routing_rules, password, departmentHead, email }]);
+    } catch (err) {
+      alert("Error adding department: " + err.message);
+    }
+  };
+
+  // Delete Department
+  const handleDeleteDepartment = async (id) => {
+    try {
+      await deleteDoc(doc(db, "departments", id));
+      setDepartments(prev => prev.filter(d => d.id !== id));
+    } catch (err) {
+      alert("Error deleting department: " + err.message);
+    }
+  };
+
+  // Invite User
+  const handleInviteUser = async (email, role) => {
+    if (!email) {
+      alert("Email is required");
+      return;
+    }
+    try {
+      await setDoc(doc(db, "users", email), { email, role, department: null });
+      alert(`Invited user: ${email}`);
+    } catch (err) {
+      alert("Error inviting user: " + err.message);
+    }
+  };
+
+  // Dummy report handlers
   const generatePDF = () => alert("Generate PDF called");
   const generateCSV = () => alert("Generate CSV called");
   const generateExcel = () => alert("Generate Excel called");
+
   const handleLogout = () => {
     firebaseSignOut(auth);
     navigate("/");
@@ -116,14 +162,7 @@ export default function SuperAdminDashboard() {
 
   return (
     <ErrorBoundary>
-      <Box
-        sx={{
-          height: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          bgcolor: C.bg,
-        }}
-      >
+      <Box sx={{ height: "100vh", display: "flex", flexDirection: "column", bgcolor: C.bg }}>
         {/* Header */}
         <Box
           sx={{
@@ -140,34 +179,24 @@ export default function SuperAdminDashboard() {
           <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
             Super Admin Dashboard
           </Typography>
-          <button
+          <Button
             onClick={handleLogout}
-            style={{
+            sx={{
               backgroundColor: "#6B8A47",
               color: "white",
-              border: "none",
-              borderRadius: 6,
-              padding: "8px 16px",
-              cursor: "pointer",
+              borderRadius: 1,
+              px: 3,
               fontWeight: 500,
               fontSize: 14,
+              "&:hover": { backgroundColor: "#556B2F" },
             }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#556B2F")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#6B8A47")}
           >
             Logout
-          </button>
+          </Button>
         </Box>
 
-        {/* Main Layout */}
-        <Box
-          sx={{
-            display: "flex",
-            flexGrow: 1,
-            height: "calc(100vh - 64px)",
-            overflow: "hidden",
-          }}
-        >
+        {/* Main layout */}
+        <Box sx={{ display: "flex", flexGrow: 1, height: "calc(100vh - 64px)", overflow: "hidden" }}>
           {/* Sidebar */}
           <nav
             style={{
@@ -179,15 +208,7 @@ export default function SuperAdminDashboard() {
               userSelect: "none",
             }}
           >
-            <Box
-              sx={{
-                fontWeight: 800,
-                padding: "22px 32px",
-                letterSpacing: ".7px",
-                fontSize: 22,
-                borderBottom: `2px solid ${C.oliveDark}`,
-              }}
-            >
+            <Box sx={{ fontWeight: 800, padding: "22px 32px", letterSpacing: ".7px", fontSize: 22, borderBottom: `2px solid ${C.oliveDark}` }}>
               Civic Admin Portal
             </Box>
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
@@ -226,16 +247,7 @@ export default function SuperAdminDashboard() {
           </nav>
 
           {/* Content */}
-          <Box
-            sx={{
-              flex: 1,
-              padding: 4,
-              overflowY: "auto",
-              height: "100%",
-              boxSizing: "border-box",
-              backgroundColor: C.bg,
-            }}
-          >
+          <Box sx={{ flex: 1, padding: 4, overflowY: "auto", height: "100%", boxSizing: "border-box", backgroundColor: C.bg }}>
             {tab === "dashboard" && <Dashboard issues={issues} />}
             {tab === "departments" && (
               <Departments
@@ -246,13 +258,13 @@ export default function SuperAdminDashboard() {
             )}
             {tab === "users" && <Users users={users} inviteUser={handleInviteUser} />}
             {tab === "reports" && (
-              <Reports
-                generatePDF={generatePDF}
-                generateCSV={generateCSV}
-                generateExcel={generateExcel}
-              />
+              <Reports generatePDF={generatePDF} generateCSV={generateCSV} generateExcel={generateExcel} />
             )}
-            {tab === "settings" && <div>Settings content here</div>}
+            {tab === "settings" && (
+              <Box sx={{ p: 4 }}>
+                <Typography variant="h6">Settings content coming soon...</Typography>
+              </Box>
+            )}
           </Box>
         </Box>
       </Box>
