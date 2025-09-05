@@ -47,7 +47,6 @@ const StyledTableRow = styled(TableRow)({
 
 export default function Departments({ departments = [], addDepartment, deleteDepartment }) {
   const [newDeptName, setNewDeptName] = useState("");
-  const [newRoutingRule, setNewRoutingRule] = useState("");
   const [newDeptPassword, setNewDeptPassword] = useState("");
 
   // Generate department head/email
@@ -64,9 +63,8 @@ export default function Departments({ departments = [], addDepartment, deleteDep
       return;
     }
     const { departmentHead, email } = generateDeptHeadAndEmail(newDeptName);
-    addDepartment(newDeptName.trim(), newRoutingRule.trim(), newDeptPassword, departmentHead, email);
+    addDepartment(newDeptName.trim(), null, newDeptPassword, departmentHead, email);
     setNewDeptName("");
-    setNewRoutingRule("");
     setNewDeptPassword("");
   };
 
@@ -77,9 +75,9 @@ export default function Departments({ departments = [], addDepartment, deleteDep
         borderRadius: 3,
         padding: 4,
         boxShadow: "0 8px 20px rgba(57,83,26,0.1)",
-        maxWidth: 900,
+        maxWidth: 800,
         margin: "auto",
-        minHeight: 520,
+        minHeight: 400,
       }}
     >
       <Typography variant="h5" sx={{ color: "#37572a", fontWeight: 700, letterSpacing: 1, mb: 3 }}>
@@ -104,14 +102,6 @@ export default function Departments({ departments = [], addDepartment, deleteDep
         />
 
         <TextField
-          label="Routing Rule"
-          value={newRoutingRule}
-          onChange={(e) => setNewRoutingRule(e.target.value)}
-          sx={{ flexGrow: 1, minWidth: 220 }}
-          size="small"
-        />
-
-        <TextField
           label="Password"
           type="password"
           value={newDeptPassword}
@@ -128,11 +118,10 @@ export default function Departments({ departments = [], addDepartment, deleteDep
         <Table stickyHeader>
           <TableHead sx={{ backgroundColor: "#d1dfb0" }}>
             <TableRow>
-              <StyledTableCell sx={{ width: "35%" }}>Name</StyledTableCell>
-              <StyledTableCell sx={{ width: "45%" }}>Routing Rules</StyledTableCell>
-              <StyledTableCell sx={{ width: "15%" }}>Department Head</StyledTableCell>
+              <StyledTableCell sx={{ width: "30%" }}>Name</StyledTableCell>
+              <StyledTableCell sx={{ width: "20%" }}>Department Head</StyledTableCell>
               <StyledTableCell sx={{ width: "35%" }}>Email</StyledTableCell>
-              <StyledTableCell sx={{ width: "10%" }} align="center">
+              <StyledTableCell sx={{ width: "15%" }} align="center">
                 Actions
               </StyledTableCell>
             </TableRow>
@@ -140,7 +129,7 @@ export default function Departments({ departments = [], addDepartment, deleteDep
           <TableBody>
             {departments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ fontStyle: "italic", color: "#7a8b60", py: 4 }}>
+                <TableCell colSpan={4} align="center" sx={{ fontStyle: "italic", color: "#7a8b60", py: 4 }}>
                   No departments found.
                 </TableCell>
               </TableRow>
@@ -148,7 +137,6 @@ export default function Departments({ departments = [], addDepartment, deleteDep
               departments.map((dept) => (
                 <StyledTableRow key={dept.id}>
                   <TableCell sx={{ fontWeight: 700, color: "#37572a" }}>{dept.name}</TableCell>
-                  <TableCell>{dept.routing_rules?.map((r) => r.category).join(", ") || "—"}</TableCell>
                   <TableCell>{dept.departmentHead || "—"}</TableCell>
                   <TableCell>{dept.email || "—"}</TableCell>
                   <TableCell align="center">

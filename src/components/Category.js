@@ -1,112 +1,276 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  useTheme,
+  Grid, Card, CardContent, Typography, Box, Dialog,
+  DialogTitle, DialogContent, DialogActions, Button, MenuItem, Select, Paper
 } from "@mui/material";
-import DeleteIcon from '@mui/icons-material/Delete';
+import EnhancedEncryptionIcon from '@mui/icons-material/EnhancedEncryption';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import SchoolIcon from '@mui/icons-material/School';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
+import OpacityIcon from '@mui/icons-material/Opacity';
+import FlashOnIcon from '@mui/icons-material/FlashOn';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import DeleteIcon from '@mui/icons-material/Delete';
+import RecyclingIcon from '@mui/icons-material/Recycling';
+import PetsIcon from '@mui/icons-material/Pets';
+import SecurityIcon from '@mui/icons-material/Security';
+import WavesIcon from '@mui/icons-material/Waves';
+import NatureIcon from '@mui/icons-material/Nature';
+import ApartmentIcon from '@mui/icons-material/Apartment';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import WcIcon from '@mui/icons-material/Wc';
 import BugReportIcon from '@mui/icons-material/BugReport';
-import WaterDropIcon from '@mui/icons-material/WaterDrop';
-import GradingIcon from '@mui/icons-material/Grading';
-import PetsIcon from '@mui/icons-material/Pets';
 import ChatIcon from '@mui/icons-material/Chat';
-import PersonSearchIcon from '@mui/icons-material/PersonSearch';
-import NatureIcon from '@mui/icons-material/Nature';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import { useTranslation } from "react-i18next";
 
-const categories = [
-  { label: "pothole", icon: <DirectionsCarIcon />, color: "#b2dfdb" },
-  { label: "garbage", icon: <DeleteIcon />, color: "#f8bbd0" },
-  { label: "brokenBin", icon: <DeleteIcon />, color: "#cfd8dc" },
-  { label: "streetLight", icon: <LightbulbIcon />, color: "#fff9c4" },
-  { label: "publicToilet", icon: <WcIcon />, color: "#d1c4e9" },
-  { label: "mosquitoMenace", icon: <BugReportIcon />, color: "#ffe0b2" },
-  { label: "waterStagnation", icon: <WaterDropIcon />, color: "#b3e5fc" },
-  { label: "stormWaterDrains", icon: <GradingIcon />, color: "#c8e6c9" },
-  { label: "streetDogs", icon: <PetsIcon />, color: "#ffccbc" },
-  { label: "others", icon: <ChatIcon />, color: "#bdbdbd" },
-  { label: "checkStatus", icon: <PersonSearchIcon />, color: "#e1bee7" },
-  { label: "treeFallen", icon: <NatureIcon />, color: "#ffecb3" },
-];
+import { db } from "../firebase";
+import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+
+// Map normalized category names (trim, lower, no punctuation)
+const toKey = (s) => (s || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+
+// ICON + COLOR mapping (unique! adjust as needed)
+const visualMap = {
+  sanitationandhygiene:         { icon: <EnhancedEncryptionIcon />, bg: "#d2f2d6" },
+  medical:                      { icon: <LocalHospitalIcon />,      bg: "#ebccd6" },
+  schoolandcollege:             { icon: <SchoolIcon />,             bg: "#cde7e7" },
+  roadsandtraffic:              { icon: <DirectionsCarIcon />,      bg: "#fff5ce" },
+  publictransport:              { icon: <DirectionsBusIcon />,      bg: "#d6e6fa" },
+  water:                        { icon: <OpacityIcon />,            bg: "#e8e1fa" },
+  powersupply:                  { icon: <FlashOnIcon />,            bg: "#f6efbc" },
+  streetlights:                 { icon: <LightbulbIcon />,          bg: "#fee2f0" },
+  solidwaste:                   { icon: <DeleteIcon />,             bg: "#e9eef2" },
+  recycling:                    { icon: <RecyclingIcon />,          bg: "#f1d3f2" },
+  streetdogs:                   { icon: <PetsIcon />,               bg: "#f7e2cc" },
+  buildingsafety:               { icon: <SecurityIcon />,           bg: "#e3f1de" },
+  pollution:                    { icon: <WavesIcon />,              bg: "#fdf3c5" },
+  treeandgreencover:            { icon: <NatureIcon />,             bg: "#e4e7e7" },
+  infrastructureandmaintenance: { icon: <ApartmentIcon />,          bg: "#d7f2ee" },
+  pothole:                      { icon: <ReportProblemIcon />,      bg: "#fcf3c8" },
+  publictoilet:                 { icon: <WcIcon />,                 bg: "#eadcf4" },
+  mosquitomaintenance:          { icon: <BugReportIcon />,          bg: "#f6dfb9" },
+  others:                       { icon: <ChatIcon />,               bg: "#e3e7e7" }
+};
+
+const getVisual = (name) => {
+  const k = toKey(name);
+  return visualMap[k] || { icon: <ChatIcon />, bg: "#ececec" };
+};
+
+// Deduplicate and ignore empty categories
+const getUniqueCategories = (arr) => {
+  const seen = new Set();
+  return arr.filter(cat => {
+    const k = toKey(cat.name);
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+};
 
 export default function CategoryPage() {
-  const theme = useTheme();
-  const { t } = useTranslation();
+  const [categories, setCategories] = useState([]);
+  const [issues, setIssues] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [dialogType, setDialogType] = useState(""); // "others" | "details"
+  const [categoryDetails, setCategoryDetails] = useState(null);
+  const [selectedIssue, setSelectedIssue] = useState(null);
+  const [allocDept, setAllocDept] = useState("");
+
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const snap = await getDocs(collection(db, "category"));
+      let cats = snap.docs.map(doc => ({
+        name: (doc.data().CategoryName || "").replace(/"/g, "").trim(),
+        department: (doc.data().Department || "").replace(/"/g, "").trim(),
+      }));
+      cats = getUniqueCategories(cats); // deduplicate, remove empty
+      setCategories(cats);
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch issues and depts
+  useEffect(() => {
+    const fetchIssues = async () => {
+      const snap = await getDocs(collection(db, "issues"));
+      setIssues(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
+    fetchIssues();
+    const fetchDeps = async () => {
+      const snap = await getDocs(collection(db, "departments"));
+      setDepartments(snap.docs.map(doc => doc.data().name));
+    };
+    fetchDeps();
+  }, []);
+
+  // Issue count in category
+  const getCount = (catName) => {
+    const key = toKey(catName);
+    return issues.filter(issue => toKey(issue.category) === key).length;
+  };
+
+  // Card click
+  const handleCategoryClick = (catObj) => {
+    setSelectedIssue(null);
+    setAllocDept("");
+    if (toKey(catObj.name) === "others") {
+      setDialogType("others"); setOpenDialog(true);
+    } else {
+      setDialogType("details"); setCategoryDetails(catObj); setOpenDialog(true);
+    }
+  };
+
+  const handleAllocate = async (issueId) => {
+    if (!allocDept) return;
+    await updateDoc(doc(db, "issues", issueId), { department: allocDept });
+    alert("Department Assigned!");
+    setAllocDept("");
+    setSelectedIssue(null);
+    setOpenDialog(false);
+  };
 
   return (
-    <Box sx={{ p: 2, minHeight: "100vh", bgcolor: "#f6f7fa" }}>
-      <Typography variant="h5" align="center" gutterBottom sx={{ fontWeight: 700, mb: 4 }}>
-        {t("grievanceCategories") || "Grievance Categories"}
-      </Typography>
-      <Grid
-        container
-        spacing={3}
-        justifyContent="center"
-        alignItems="center"
-        sx={{
-          maxWidth: 1100,
-          margin: "0 auto",
-        }}
-      >
-        {categories.map((cat) => (
-          <Grid
-            key={cat.label}
-            item
-            xs={6}
-            sm={4}
-            md={3}
-            lg={2}
-            sx={{ display: "flex", justifyContent: "center" }}
-          >
-            <Card
-              sx={{
-                width: 150,
-                height: 180,
-                borderRadius: 4,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: 2,
-                transition: "transform 0.2s, box-shadow 0.2s",
-                cursor: "pointer",
-                bgcolor: "#fff",
-                '&:hover': {
-                  transform: "scale(1.05)",
-                  boxShadow: 6,
-                },
-              }}
-            >
-              <Box
-                sx={{
-                  background: cat.color,
-                  borderRadius: "50%",
-                  width: 60,
-                  height: 60,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  mb: 2,
-                }}
-              >
-                {React.cloneElement(cat.icon, { sx: { fontSize: 36, color: theme.palette.primary.dark } })}
-              </Box>
-              <CardContent sx={{ p: 0, textAlign: "center" }}>
-                <Typography variant="body1" sx={{ fontWeight: 600, fontSize: 16 }}>
-                  {t(cat.label)}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+    <Box sx={{ p: { xs: 1, md: 4 }, minHeight: "100vh", bgcolor: "#f7f7fa" }}>
+      <Box sx={{
+        maxWidth: 1150,
+        mx: "auto",
+        my: 3,
+        borderRadius: 5,
+        p: { xs: 2, md: 5 },
+        bgcolor: "#fff"
+      }}>
+        <Typography variant="h5" align="center" sx={{ fontWeight: 700, mb: 5 }}>
+          Grievance Categories
+        </Typography>
+        <Grid container spacing={3} justifyContent="center">
+          {categories.map((cat) => {
+            const { icon, bg } = getVisual(cat.name);
+            return (
+              <Grid item key={cat.name} xs={12} sm={6} md={4} lg={3}
+                sx={{ display: "flex", justifyContent: "center" }}>
+                <Card
+                  onClick={() => handleCategoryClick(cat)}
+                  sx={{
+                    width: 170,
+                    height: 190,
+                    borderRadius: 4,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    px: 1,
+                    bgcolor: "#fafdff",
+                    boxShadow: "0 4px 12px #dde4dc44",
+                    transition: "transform 0.17s, box-shadow 0.19s",
+                    "&:hover": { boxShadow: 8, transform: "scale(1.055)" }
+                  }}
+                >
+                  <Box
+                    sx={{
+                      background: bg,
+                      borderRadius: "50%",
+                      width: 60,
+                      height: 60,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mb: 2,
+                      boxShadow: "0 4px 12px #eaece7"
+                    }}
+                  >
+                    {React.cloneElement(icon, { sx: { fontSize: 32, color: "#35787e" } })}
+                  </Box>
+                  <CardContent sx={{ p: 0, textAlign: "center" }}>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: 17,
+                        textTransform: "lowercase",
+                        mb: 0.2,
+                        color: "#232b36"
+                      }}
+                    >
+                      {cat.name}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
+      </Box>
+
+      {/* Dialog for details and manual allocation */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+        {dialogType === "details" && (
+          <>
+            <DialogTitle>{categoryDetails?.name} Details</DialogTitle>
+            <DialogContent>
+              <Typography sx={{ my: 2 }}>
+                <strong>Department:</strong> {categoryDetails?.department || "-"}
+              </Typography>
+              <Typography>
+                <strong>Total Issues:</strong> {getCount(categoryDetails?.name)}
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setOpenDialog(false)} variant="contained" sx={{ bgcolor: "#6B8A47", color: "#fff" }}>Close</Button>
+            </DialogActions>
+          </>
+        )}
+
+        {dialogType === "others" && (
+          <>
+            <DialogTitle>Unassigned "Others" Issues</DialogTitle>
+            <DialogContent>
+              {issues.filter((i) => toKey(i.category) === "others").length === 0 && (
+                <Typography>No 'Others' issues found.</Typography>
+              )}
+              {issues.filter((i) => toKey(i.category) === "others").map((issue) => (
+                <Paper key={issue.id} variant="outlined" sx={{ p: 2, mb: 2, bgcolor: "#f4faf1", borderRadius: 4 }}>
+                  <Typography>
+                    <strong>Description:</strong> {issue.description || <i>No description</i>}
+                  </Typography>
+                  <Typography>
+                    <strong>Status:</strong> {issue.status || "-"}
+                  </Typography>
+                  <Typography>
+                    <strong>Department:</strong> {issue.department || "Not Assigned"}
+                  </Typography>
+                  <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
+                    <Select
+                      size="small"
+                      sx={{ minWidth: 200 }}
+                      value={selectedIssue?.id === issue.id ? allocDept : ""}
+                      onChange={(e) => { setAllocDept(e.target.value); setSelectedIssue(issue); }}
+                    >
+                      <MenuItem value=""><em>Assign Department</em></MenuItem>
+                      {departments.map((dep) => (
+                        <MenuItem value={dep} key={dep}>{dep}</MenuItem>
+                      ))}
+                    </Select>
+                    <Button
+                      variant="contained"
+                      sx={{ bgcolor: "#6B8A47", color: "#fff" }}
+                      onClick={() => handleAllocate(issue.id)}
+                    >
+                      Allocate
+                    </Button>
+                  </Box>
+                </Paper>
+              ))}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setOpenDialog(false)} variant="contained" sx={{ bgcolor: "#6B8A47", color: "#fff" }}>Close</Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </Box>
   );
 }
