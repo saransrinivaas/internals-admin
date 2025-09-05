@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { styled } from "@mui/material/styles";
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteIcon from "@mui/icons-material/Delete";
 import {
   Box,
   Typography,
@@ -21,24 +21,27 @@ const OliveButton = styled(Button)({
   backgroundColor: "#6B8A47",
   color: "white",
   "&:hover": {
-    backgroundColor: "#556B2F",
+    backgroundColor: "#55672f",
   },
-  marginTop: 12,
-  textTransform: "none",
+  marginTop: 16,
+  padding: "10px 24px",
   fontWeight: 600,
-  padding: "10px 18px",
+  textTransform: "none",
+  borderRadius: 8,
 });
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
-  fontWeight: 600,
-  color: "#3b5a40",
+  fontWeight: 700,
+  color: "#37572a",
   borderBottom: `1px solid ${theme.palette.divider}`,
   verticalAlign: "middle",
+  fontSize: 14,
 }));
 
 const StyledTableRow = styled(TableRow)({
+  transition: "background-color 0.2s ease",
   "&:hover": {
-    backgroundColor: "#f0f7f0",
+    backgroundColor: "#eaf4d3",
   },
 });
 
@@ -47,9 +50,21 @@ export default function Departments({ departments = [], addDepartment, deleteDep
   const [newRoutingRule, setNewRoutingRule] = useState("");
   const [newDeptPassword, setNewDeptPassword] = useState("");
 
+  // Generate department head/email
+  const generateDeptHeadAndEmail = (name) => {
+    const normalized = name.toLowerCase().replace(/\s+/g, "");
+    const departmentHead = `${normalized}depthead`;
+    const email = `${departmentHead}@city.gov.in`;
+    return { departmentHead, email };
+  };
+
   const handleAdd = () => {
-    if (!newDeptName.trim()) return;
-    addDepartment(newDeptName.trim(), newRoutingRule.trim(), newDeptPassword);
+    if (!newDeptName.trim()) {
+      alert("Please enter department name");
+      return;
+    }
+    const { departmentHead, email } = generateDeptHeadAndEmail(newDeptName);
+    addDepartment(newDeptName.trim(), newRoutingRule.trim(), newDeptPassword, departmentHead, email);
     setNewDeptName("");
     setNewRoutingRule("");
     setNewDeptPassword("");
@@ -58,32 +73,26 @@ export default function Departments({ departments = [], addDepartment, deleteDep
   return (
     <Box
       sx={{
-        backgroundColor: "#fff",
+        backgroundColor: "#fafdf6",
         borderRadius: 3,
         padding: 4,
-        boxShadow: "0 5px 15px rgba(86,119,69,0.3)",
-        maxWidth: 1000,
+        boxShadow: "0 8px 20px rgba(57,83,26,0.1)",
+        maxWidth: 900,
         margin: "auto",
-        minHeight: 500,
+        minHeight: 520,
       }}
     >
-      <Typography
-        variant="h5"
-        fontWeight="bold"
-        color="#3b5a40"
-        gutterBottom
-        sx={{ letterSpacing: 1 }}
-      >
+      <Typography variant="h5" sx={{ color: "#37572a", fontWeight: 700, letterSpacing: 1, mb: 3 }}>
         Departments
       </Typography>
 
       <Box
         sx={{
           display: "flex",
-          gap: 2,
           flexWrap: "wrap",
-          marginBottom: 3,
-          alignItems: "center",
+          gap: 3,
+          mb: 4,
+          alignItems: "flex-end",
         }}
       >
         <TextField
@@ -93,13 +102,15 @@ export default function Departments({ departments = [], addDepartment, deleteDep
           sx={{ flexGrow: 1, minWidth: 220 }}
           size="small"
         />
+
         <TextField
-          label="Routing Rule (Category)"
+          label="Routing Rule"
           value={newRoutingRule}
           onChange={(e) => setNewRoutingRule(e.target.value)}
           sx={{ flexGrow: 1, minWidth: 220 }}
           size="small"
         />
+
         <TextField
           label="Password"
           type="password"
@@ -109,39 +120,40 @@ export default function Departments({ departments = [], addDepartment, deleteDep
           size="small"
           autoComplete="new-password"
         />
+
         <OliveButton onClick={handleAdd}>Add Department</OliveButton>
       </Box>
 
-      <TableContainer component={Paper} sx={{ boxShadow: "0 6px 18px rgba(86,119,69,0.3)" }}>
-        <Table>
-          <TableHead sx={{ backgroundColor: "#cad7b3" }}>
+      <TableContainer component={Paper} sx={{ boxShadow: "0 8px 24px rgba(57,83,26,0.12)" }}>
+        <Table stickyHeader>
+          <TableHead sx={{ backgroundColor: "#d1dfb0" }}>
             <TableRow>
               <StyledTableCell sx={{ width: "35%" }}>Name</StyledTableCell>
-              <StyledTableCell sx={{ width: "50%" }}>Routing Rules</StyledTableCell>
-              <StyledTableCell sx={{ width: "15%" }} align="center">Actions</StyledTableCell>
+              <StyledTableCell sx={{ width: "45%" }}>Routing Rules</StyledTableCell>
+              <StyledTableCell sx={{ width: "15%" }}>Department Head</StyledTableCell>
+              <StyledTableCell sx={{ width: "35%" }}>Email</StyledTableCell>
+              <StyledTableCell sx={{ width: "10%" }} align="center">
+                Actions
+              </StyledTableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {departments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} align="center" sx={{ fontStyle: "italic", color: "#7a8a65" }}>
+                <TableCell colSpan={5} align="center" sx={{ fontStyle: "italic", color: "#7a8b60", py: 4 }}>
                   No departments found.
                 </TableCell>
               </TableRow>
             ) : (
               departments.map((dept) => (
                 <StyledTableRow key={dept.id}>
-                  <TableCell sx={{ fontWeight: 600, color: "#3b5a40" }}>{dept.name}</TableCell>
-                  <TableCell>
-                    {dept.routing_rules?.map((r) => r.category).join(", ") || "—"}
-                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#37572a" }}>{dept.name}</TableCell>
+                  <TableCell>{dept.routing_rules?.map((r) => r.category).join(", ") || "—"}</TableCell>
+                  <TableCell>{dept.departmentHead || "—"}</TableCell>
+                  <TableCell>{dept.email || "—"}</TableCell>
                   <TableCell align="center">
                     <Tooltip title="Delete Department">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => deleteDepartment(dept.id)}
-                      >
+                      <IconButton size="small" color="error" onClick={() => deleteDepartment(dept.id)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
