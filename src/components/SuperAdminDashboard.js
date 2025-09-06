@@ -7,6 +7,23 @@ import {
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import {
+  collection,
+  getDocs,
+  setDoc,
+  doc,
+  deleteDoc,
+  getDoc,
+  onSnapshot,
+} from "firebase/firestore";
+
+import {
+  ChartBarIcon,
+  BuildingOfficeIcon, // ✅ replaced BuildingIcon with BuildingOfficeIcon
+  UserIcon,
+  DocumentIcon,
+  CogIcon,
+} from "@heroicons/react/24/outline";
 
 import Dashboard from "./Dashboard";
 import Departments from "./Departments";
@@ -14,34 +31,28 @@ import Users from "./Users";
 import Reports from "./Reports";
 import Heatmap from "./Heatmap";
 import CategoryPage from "./Category";
+import StaffSection from "./StaffSection";
 
 import { auth, db } from "../firebase";
-import { collection, getDocs, deleteDoc, doc, setDoc } from "firebase/firestore";
-import {
-  ChartBarIcon,
-  BuildingOffice2Icon,
-  UserGroupIcon,
-  DocumentArrowDownIcon,
-  Cog6ToothIcon,
-} from "@heroicons/react/24/outline";
 
 const C = {
-  olive: "#3b5d3a",
-  oliveDark: "#2e472d",
-  oliveLight: "#486a3e",
+  olive: "#3b5b27",
+  oliveDark: "#2e4720",
+  oliveLight: "#486c2c",
   textLight: "#ffffff",
   bg: "#f5f7f5",
-  accent: "#6B8A47",
+  accent: "#6b8e47",
 };
 
 const SB_ICONS = {
   dashboard: ChartBarIcon,
-  departments: BuildingOffice2Icon,
-  users: UserGroupIcon,
-  reports: DocumentArrowDownIcon,
-  settings: Cog6ToothIcon,
-  heatmap: BuildingOffice2Icon,  // can replace icon as needed
+  departments: BuildingOfficeIcon, // ✅ fixed
+  heatmap: BuildingOfficeIcon,     // ✅ fixed
   category: ChartBarIcon,
+  users: UserIcon,
+  reports: DocumentIcon,
+  settings: CogIcon,
+  staff: UserIcon,
 };
 
 const menuItems = [
@@ -49,35 +60,29 @@ const menuItems = [
   { key: "departments", label: "Departments" },
   { key: "heatmap", label: "Heatmap" },
   { key: "category", label: "Category" },
+  { key: "staff", label: "Staff" },
   { key: "users", label: "Users" },
   { key: "reports", label: "Reports" },
   { key: "settings", label: "Settings" },
 ];
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, errorInfo) {
-    console.error("Caught error:", error, errorInfo);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <Box sx={{ padding: 3, color: "red" }}>
-          <Typography variant="h5" gutterBottom>
-            Something went wrong.
-          </Typography>
-          <pre>{this.state.error && this.state.error.toString()}</pre>
-        </Box>
-      );
+function generateDeptHeadAndEmail(deptName) {
+  if (!deptName) return { departmentHead: "", email: "" };
+  let base = "";
+  if (/environment/i.test(deptName)) {
+    base = "Environment";
+  } else {
+    let name = deptName.replace(/department of\s*/i, "").trim();
+    if (name.includes("&")) {
+      base = name.split("&")[0].trim().split(" ")[0];
+    } else {
+      base = name.split(" ")[0];
     }
-    return this.props.children;
+    base = base ? base.charAt(0).toUpperCase() + base.slice(1).toLowerCase() : deptName;
   }
+  const departmentHead = `${base}DeptHead`;
+  const email = `${base.toLowerCase()}depthead@city.gov`;
+  return { departmentHead, email };
 }
 
 export default function SuperAdminDashboard() {
@@ -86,33 +91,40 @@ export default function SuperAdminDashboard() {
   const [issues, setIssues] = useState([]);
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [staff, setStaff] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchData = async () => {
+    async function fetchInitialData() {
       try {
-        const issuesSnap = await getDocs(collection(db, "issues"));
-        const usersSnap = await getDocs(collection(db, "users"));
-        const deptsSnap = await getDocs(collection(db, "departments"));
-        setIssues(issuesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-        setUsers(usersSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-        setDepartments(deptsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        const [issuesSnap, usersSnap, deptsSnap] = await Promise.all([
+          getDocs(collection(db, "issues")),
+          getDocs(collection(db, "users")),
+          getDocs(collection(db, "departments")),
+        ]);
+        setIssues(issuesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setUsers(usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setDepartments(deptsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
-        console.error("Error fetching data: ", error);
+        console.error("Error fetching initial data:", error);
       }
-    };
+    }
+    fetchInitialData();
 
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        navigate("/");
-        return;
+    const unsubscribe = onSnapshot(
+      collection(db, "staff"),
+      snapshot => {
+        setStaff(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      },
+      error => {
+        console.error("Staff onSnapshot error:", error);
       }
-      fetchData();
-    });
+    );
+
     return () => unsubscribe();
-  }, [navigate]);
+  }, []);
 
-  const handleAddDepartment = async (name, routingRule, password) => {
+  const handleAddDepartment = async (name, routingRule, password, departmentHead, email, role = "DEPT_HEAD") => {
     try {
       const deptId = `dept_${Date.now()}`;
       const routing_rules = routingRule ? [{ category: routingRule, auto_assign: true }] : [];
@@ -120,141 +132,109 @@ export default function SuperAdminDashboard() {
         name,
         routing_rules,
         password,
+        departmentHead,
+        email,
       });
-      setDepartments((prev) => [...prev, { id: deptId, name, routing_rules, password }]);
-    } catch (err) {
-      alert("Error adding department: " + err.message);
+      await setDoc(doc(db, "users", email.split("@")[0]), {
+        email,
+        role,
+        department: name,
+        name: "Department Head",
+        password,
+      });
+      setDepartments(prev => [...prev, { id: deptId, name, routing_rules, password, departmentHead, email }]);
+      alert("Department and Department Head created successfully.");
+    } catch (error) {
+      alert(`Failed to create department: ${error.message}`);
     }
   };
 
-  const handleDeleteDepartment = async (id) => {
+  const handleDeleteDepartment = async (deptId) => {
     try {
-      await deleteDoc(doc(db, "departments", id));
-      setDepartments((prev) => prev.filter((d) => d.id !== id));
-    } catch (err) {
-      alert("Error deleting department: " + err.message);
+      const deptDoc = await doc(db, "departments", deptId);
+      const deptSnapshot = await getDoc(deptDoc);
+      if (!deptSnapshot.exists()) throw new Error("Department not found");
+
+      const deptData = deptSnapshot.data();
+      await deleteDoc(doc(db, "departments", deptId));
+      if (deptData.email) {
+        const userId = deptData.email.split("@")[0];
+        await deleteDoc(doc(db, "users", userId));
+        setUsers(prev => prev.filter(u => u.email !== deptData.email));
+      }
+      setDepartments(prev => prev.filter(d => d.id !== deptId));
+      alert("Department deleted successfully.");
+    } catch (error) {
+      alert(`Failed to delete department: ${error.message}`);
     }
   };
 
   const handleInviteUser = async (email, role) => {
     try {
       await setDoc(doc(db, "users", email), { email, role, department: null });
-      alert(`Invited user: ${email}`);
-    } catch (err) {
-      alert("Error inviting user: " + err.message);
+      setUsers(prev => [...prev, { email, role, department: null }]);
+      alert("User invited successfully.");
+    } catch (error) {
+      alert(`Failed to invite user: ${error.message}`);
     }
   };
 
-  const generatePDF = () => alert("Generate PDF called");
-  const generateCSV = () => alert("Generate CSV called");
-  const generateExcel = () => alert("Generate Excel called");
   const handleLogout = () => {
-    firebaseSignOut(auth);
-    navigate("/");
+    firebaseSignOut(auth).then(() => navigate("/"));
   };
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === "en" ? "hi" : "en";
-    i18n.changeLanguage(newLang);
+    i18n.changeLanguage(i18n.language === "en" ? "hi" : "en");
   };
 
-  // Sidebar render with tab state (no navigation for heatmap/category)
+  // Example stats
+  const total = issues.length;
+  const resolved = issues.filter(i => i.status === t("resolved")).length;
+  const inProgress = issues.filter(i => i.status === t("inProgress")).length;
+  const pending = issues.filter(i => i.status === t("verified")).length;
+  const highPriority = issues.filter(i => i.priority === "High").length;
+
+  const pieData = [
+    { name: t("verified"), value: pending },
+    { name: t("inProgress"), value: inProgress },
+    { name: t("resolved"), value: resolved },
+  ];
+
+  const COLORS = ["#FFBB28", "#008FE", "#00C"];
+
   return (
     <ErrorBoundary>
-      <Box
-        sx={{
-          height: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          bgcolor: C.bg,
-        }}
-      >
-        {/* Header */}
-        <Box
-          sx={{
-            backgroundColor: C.olive,
-            color: C.textLight,
-            px: 3,
-            py: 2,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
-            {t("superAdmin")}
-          </Typography>
+      <Box sx={{ height: "100vh", display: "flex", flexDirection: "column", bgcolor: C.bg }}>
+        <Box sx={{ backgroundColor: C.olive, color: C.textLight, px: 3, py: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography variant="h4" fontWeight={600}>{t("superAdmin")}</Typography>
           <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
             <Button
               onClick={toggleLanguage}
-              sx={{
-                backgroundColor: C.accent,
-                color: C.textLight,
-                borderRadius: 1,
-                px: 3,
-                fontWeight: 500,
-                fontSize: 14,
-                "&:hover": { backgroundColor: C.oliveDark },
-              }}
+              sx={{ bgcolor: C.accent, color: C.textLight, borderRadius: 1, px: 3, fontWeight: 500, fontSize: 14, "&:hover": { bgcolor: C.oliveDark } }}
             >
               {i18n.language === "en" ? "हिन्दी" : "English"}
             </Button>
             <Button
               onClick={handleLogout}
-              sx={{
-                backgroundColor: "#6B8A47",
-                color: "white",
-                borderRadius: 1,
-                px: 3,
-                fontWeight: 500,
-                fontSize: 14,
-                "&:hover": { backgroundColor: "#556B2F" },
-              }}
+              sx={{ bgcolor: C.accent, color: C.textLight, borderRadius: 1, px: 3, fontWeight: 500, fontSize: 14, "&:hover": { bgcolor: C.oliveDark } }}
             >
               {t("logout")}
             </Button>
           </Box>
         </Box>
-        {/* Main Layout */}
-        <Box
-          sx={{
-            display: "flex",
-            flexGrow: 1,
-            height: "calc(100vh - 64px)",
-            overflow: "hidden",
-          }}
-        >
-          {/* Sidebar */}
-          <nav
-            style={{
-              background: C.olive,
-              minWidth: 220,
-              color: C.textLight,
-              height: "100%",
-              overflowY: "auto",
-              userSelect: "none",
-            }}
-          >
-            <Box
-              sx={{
-                fontWeight: 800,
-                padding: "22px 32px",
-                letterSpacing: ".7px",
-                fontSize: 22,
-                borderBottom: `2px solid ${C.oliveDark}`,
-              }}
-            >
+        <Box sx={{ display: "flex", flexGrow: 1, height: "calc(100vh - 64px)", overflow: "hidden" }}>
+          <nav style={{ background: C.olive, minWidth: 220, color: C.textLight, height: "100%", overflowY: "auto", userSelect: "none" }}>
+            <Box sx={{ fontWeight: 800, p: "22px 32px", letterSpacing: ".7px", fontSize: 22, borderBottom: `2px solid ${C.oliveDark}` }}>
               {t("civicPortal")}
             </Box>
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {menuItems.map(({ key, label }) => {
                 const Icon = SB_ICONS[key];
-                const active = tab === key;
+                const active = key === tab;
                 return (
                   <li
                     key={key}
-                    onClick={() => setTab(key)}  // Always set tab, no navigate
+                    onClick={() => setTab(key)}
                     style={{
                       padding: "13px 32px",
                       cursor: "pointer",
@@ -267,12 +247,8 @@ export default function SuperAdminDashboard() {
                       transition: "background-color 0.2s ease",
                       userSelect: "none",
                     }}
-                    onMouseOver={(e) => {
-                      if (!active) e.currentTarget.style.backgroundColor = C.oliveLight;
-                    }}
-                    onMouseOut={(e) => {
-                      if (!active) e.currentTarget.style.backgroundColor = "transparent";
-                    }}
+                    onMouseEnter={e => !active && (e.currentTarget.style.background = C.oliveLight)}
+                    onMouseLeave={e => !active && (e.currentTarget.style.background = "transparent")}
                   >
                     <Icon style={{ width: 22, height: 22, opacity: active ? 1 : 0.85 }} />
                     {t(label.toLowerCase())}
@@ -281,17 +257,7 @@ export default function SuperAdminDashboard() {
               })}
             </ul>
           </nav>
-          {/* Content */}
-          <Box
-            sx={{
-              flex: 1,
-              padding: 4,
-              overflowY: "auto",
-              height: "100%",
-              boxSizing: "border-box",
-              backgroundColor: C.bg,
-            }}
-          >
+          <Box sx={{ flex: 1, p: 4, overflowY: "auto" }}>
             {tab === "dashboard" && <Dashboard issues={issues} />}
             {tab === "departments" && (
               <Departments
@@ -300,15 +266,26 @@ export default function SuperAdminDashboard() {
                 deleteDepartment={handleDeleteDepartment}
               />
             )}
+            {tab === "staff" && <StaffSection departments={departments} staff={staff} setStaff={setStaff} />}
+            {tab === "users" && <Users users={users} />}
+            {tab === "reports" && (
+              <Reports
+                total={total}
+                resolved={resolved}
+                inProgress={inProgress}
+                pending={pending}
+                highPriority={highPriority}
+                pieData={pieData}
+                COLORS={COLORS}
+              />
+            )}
             {tab === "heatmap" && <Heatmap />}
             {tab === "category" && <CategoryPage />}
-            {tab === "users" && <Users users={users} inviteUser={handleInviteUser} />}
-            {tab === "reports" && (
-              <Reports generatePDF={generatePDF} generateCSV={generateCSV} generateExcel={generateExcel} />
-            )}
             {tab === "settings" && (
-              <Box sx={{ p: 4 }}>
-                <Typography variant="h6">{t("settingsContent")}</Typography>
+              <Box>
+                <Typography variant="h5" color={C.olive}>
+                  Settings (Coming Soon)
+                </Typography>
               </Box>
             )}
           </Box>
@@ -316,4 +293,30 @@ export default function SuperAdminDashboard() {
       </Box>
     </ErrorBoundary>
   );
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("Error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Box sx={{ padding: 3, color: "red" }}>
+          <Typography variant="h5" gutterBottom>
+            Something went wrong.
+          </Typography>
+          <pre>{this.state.error?.toString()}</pre>
+        </Box>
+      );
+    }
+    return this.props.children;
+  }
 }

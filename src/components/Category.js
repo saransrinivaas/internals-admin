@@ -3,53 +3,57 @@ import {
   Grid, Card, CardContent, Typography, Box, Dialog,
   DialogTitle, DialogContent, DialogActions, Button, MenuItem, Select, Paper
 } from "@mui/material";
-import EnhancedEncryptionIcon from '@mui/icons-material/EnhancedEncryption';
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
-import SchoolIcon from '@mui/icons-material/School';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
-import OpacityIcon from '@mui/icons-material/Opacity';
-import FlashOnIcon from '@mui/icons-material/FlashOn';
-import LightbulbIcon from '@mui/icons-material/Lightbulb';
-import DeleteIcon from '@mui/icons-material/Delete';
-import RecyclingIcon from '@mui/icons-material/Recycling';
-import PetsIcon from '@mui/icons-material/Pets';
-import SecurityIcon from '@mui/icons-material/Security';
-import WavesIcon from '@mui/icons-material/Waves';
-import NatureIcon from '@mui/icons-material/Nature';
-import ApartmentIcon from '@mui/icons-material/Apartment';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import WcIcon from '@mui/icons-material/Wc';
-import BugReportIcon from '@mui/icons-material/BugReport';
+
+import EnhancedEncryptionIcon from '@mui/icons-material/EnhancedEncryption'; // sanitation and hygiene
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';           // medical
+import SchoolIcon from '@mui/icons-material/School';                         // school and college
+import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';           // public transport
+import OpacityIcon from '@mui/icons-material/Opacity';                       // water
+import FlashOnIcon from '@mui/icons-material/FlashOn';                       // power supply
+import LightbulbIcon from '@mui/icons-material/Lightbulb';                   // street light
+import DeleteIcon from '@mui/icons-material/Delete';                         // solid waste
+import RecyclingIcon from '@mui/icons-material/Recycling';                   // recycling
+import PetsIcon from '@mui/icons-material/Pets';                             // street dogs
+import SecurityIcon from '@mui/icons-material/Security';                     // building safety
+import WavesIcon from '@mui/icons-material/Waves';                           // pollution
+import NatureIcon from '@mui/icons-material/Nature';                         // tree and green cover
+import WcIcon from '@mui/icons-material/Wc';                                 // public toilet
+
+// Creative icons for the requested categories
+import BugReportIcon from '@mui/icons-material/BugReport';                   // mosquito maintenance
+import DomainIcon from '@mui/icons-material/Domain';                         // infrastructure and maintenance
+import AltRouteIcon from '@mui/icons-material/AltRoute';                     // roads & traffic
+import EmojiObjectsIcon from '@mui/icons-material/EmojiObjects';             // others
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';           // pothole
+
 import ChatIcon from '@mui/icons-material/Chat';
 
 import { db } from "../firebase";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 
-// Map normalized category names (trim, lower, no punctuation)
-const toKey = (s) => (s || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+const toKey = (s) =>
+  (s || "")
+    .replace(/[\s&]/g, "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toLowerCase();
 
-// ICON + COLOR mapping (unique! adjust as needed)
 const visualMap = {
-  sanitationandhygiene:         { icon: <EnhancedEncryptionIcon />, bg: "#d2f2d6" },
-  medical:                      { icon: <LocalHospitalIcon />,      bg: "#ebccd6" },
-  schoolandcollege:             { icon: <SchoolIcon />,             bg: "#cde7e7" },
-  roadsandtraffic:              { icon: <DirectionsCarIcon />,      bg: "#fff5ce" },
-  publictransport:              { icon: <DirectionsBusIcon />,      bg: "#d6e6fa" },
-  water:                        { icon: <OpacityIcon />,            bg: "#e8e1fa" },
-  powersupply:                  { icon: <FlashOnIcon />,            bg: "#f6efbc" },
-  streetlights:                 { icon: <LightbulbIcon />,          bg: "#fee2f0" },
-  solidwaste:                   { icon: <DeleteIcon />,             bg: "#e9eef2" },
-  recycling:                    { icon: <RecyclingIcon />,          bg: "#f1d3f2" },
-  streetdogs:                   { icon: <PetsIcon />,               bg: "#f7e2cc" },
-  buildingsafety:               { icon: <SecurityIcon />,           bg: "#e3f1de" },
-  pollution:                    { icon: <WavesIcon />,              bg: "#fdf3c5" },
-  treeandgreencover:            { icon: <NatureIcon />,             bg: "#e4e7e7" },
-  infrastructureandmaintenance: { icon: <ApartmentIcon />,          bg: "#d7f2ee" },
-  pothole:                      { icon: <ReportProblemIcon />,      bg: "#fcf3c8" },
-  publictoilet:                 { icon: <WcIcon />,                 bg: "#eadcf4" },
-  mosquitomaintenance:          { icon: <BugReportIcon />,          bg: "#f6dfb9" },
-  others:                       { icon: <ChatIcon />,               bg: "#e3e7e7" }
+  pothole: { icon: <DirectionsCarIcon />, bg: "#fcf3c8" },
+  pollution: { icon: <WavesIcon />, bg: "#fdf3c5" },
+  powersupply: { icon: <FlashOnIcon />, bg: "#f6efbc" },
+  streetlight: { icon: <LightbulbIcon />, bg: "#fee2f0" },
+  sanitationandhygiene: { icon: <EnhancedEncryptionIcon />, bg: "#d2f2d6" },
+  solidwaste: { icon: <DeleteIcon />, bg: "#e9eef2" },
+  streetdogs: { icon: <PetsIcon />, bg: "#f7e2cc" },
+  mosquitomaintenance: { icon: <BugReportIcon />, bg: "#f6dfb9" },
+  publictoilet: { icon: <WcIcon />, bg: "#eadcf4" },
+  water: { icon: <OpacityIcon />, bg: "#e8e1fa" },
+  publictransport: { icon: <DirectionsBusIcon />, bg: "#d6e6fa" },
+  treeandgreencover: { icon: <NatureIcon />, bg: "#e4e7e7" },
+  infrastructureandmaintenance: { icon: <DomainIcon />, bg: "#d7f2ee" },
+  others: { icon: <EmojiObjectsIcon />, bg: "#e3e7e7" },
+  roadsandtraffic: { icon: <AltRouteIcon />, bg: "#fff5ce" },
+  recycling: { icon: <RecyclingIcon />, bg: "#f1d3f2" },
 };
 
 const getVisual = (name) => {
@@ -57,7 +61,6 @@ const getVisual = (name) => {
   return visualMap[k] || { icon: <ChatIcon />, bg: "#ececec" };
 };
 
-// Deduplicate and ignore empty categories
 const getUniqueCategories = (arr) => {
   const seen = new Set();
   return arr.filter(cat => {
@@ -73,12 +76,11 @@ export default function CategoryPage() {
   const [issues, setIssues] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
-  const [dialogType, setDialogType] = useState(""); // "others" | "details"
+  const [dialogType, setDialogType] = useState("");
   const [categoryDetails, setCategoryDetails] = useState(null);
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [allocDept, setAllocDept] = useState("");
 
-  // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       const snap = await getDocs(collection(db, "category"));
@@ -86,40 +88,41 @@ export default function CategoryPage() {
         name: (doc.data().CategoryName || "").replace(/"/g, "").trim(),
         department: (doc.data().Department || "").replace(/"/g, "").trim(),
       }));
-      cats = getUniqueCategories(cats); // deduplicate, remove empty
+      cats = getUniqueCategories(cats);
       setCategories(cats);
     };
     fetchCategories();
   }, []);
 
-  // Fetch issues and depts
   useEffect(() => {
     const fetchIssues = async () => {
       const snap = await getDocs(collection(db, "issues"));
       setIssues(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     };
     fetchIssues();
-    const fetchDeps = async () => {
+
+    const fetchDepartments = async () => {
       const snap = await getDocs(collection(db, "departments"));
       setDepartments(snap.docs.map(doc => doc.data().name));
     };
-    fetchDeps();
+    fetchDepartments();
   }, []);
 
-  // Issue count in category
   const getCount = (catName) => {
     const key = toKey(catName);
     return issues.filter(issue => toKey(issue.category) === key).length;
   };
 
-  // Card click
   const handleCategoryClick = (catObj) => {
     setSelectedIssue(null);
     setAllocDept("");
     if (toKey(catObj.name) === "others") {
-      setDialogType("others"); setOpenDialog(true);
+      setDialogType("others");
+      setOpenDialog(true);
     } else {
-      setDialogType("details"); setCategoryDetails(catObj); setOpenDialog(true);
+      setDialogType("details");
+      setCategoryDetails(catObj);
+      setOpenDialog(true);
     }
   };
 
@@ -205,7 +208,6 @@ export default function CategoryPage() {
         </Grid>
       </Box>
 
-      {/* Dialog for details and manual allocation */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         {dialogType === "details" && (
           <>
