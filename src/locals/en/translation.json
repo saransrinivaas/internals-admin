@@ -44,5 +44,9 @@
   "checkStatus": "Check Status",
   "treeFallen": "Tree Fallen",
   "category": "Category",
-  "heatmap": "Heatmap"
+  "heatmap": "Heatmap",
+  "pollution": "Pollution",
+  "power_supply": "Power Supply",
+  "medical": "Medical",
+  "street_light": "Street Light"
 }

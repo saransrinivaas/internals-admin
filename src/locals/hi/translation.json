@@ -44,5 +44,9 @@
   "checkStatus": "स्थिति जांचें",
   "treeFallen": "गिरा हुआ पेड़",
   "category": "श्रेणी",
-  "heatmap": "हीटमैप"
+  "heatmap": "हीटमैप",
+  "pollution": "प्रदूषण",
+  "power_supply": "बिजली आपूर्ति",
+  "medical": "चिकित्सा",
+  "street_light": "सड़क लाइट"
 }

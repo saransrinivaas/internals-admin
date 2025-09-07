@@ -101,7 +101,7 @@ export default function Dashboard() {
     },
   };
 
-  
+  // Line chart data
   const lineData = {
     labels: [
       t("week1") || "Week 1",
