@@ -1,6 +1,15 @@
+// DepartmentDashboard.jsx
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
-import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  updateDoc,
+  onSnapshot,
+} from "firebase/firestore";
 import DepartmentStaff from "./DepartmentStaff";
 import { useNavigate } from "react-router-dom";
 import {
@@ -13,6 +22,10 @@ import {
   TableCell,
   TableBody,
   Button,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import {
   ChartPieIcon,
@@ -34,7 +47,6 @@ const C = {
 
 const texts = {
   en: {
-    departmentName: "Department of Health, Medical Education & Family Welfare",
     issueSuffix: "Issues",
     reports: "Reports",
     issues: "Issues",
@@ -44,6 +56,7 @@ const texts = {
     resolved: "Resolved",
     inProgress: "In Progress",
     verified: "Verified",
+    completed: "Completed",
     highPriority: "High Priority",
     logout: "LOGOUT",
     category: "Category",
@@ -52,13 +65,12 @@ const texts = {
     priority: "Priority",
     location: "Location",
     actions: "Actions",
+    assignedTo: "Assigned To",
     issuesByStatus: "Issues by Status",
-    sortByPriority: "SORT BY PRIORITY",
     hindi: "हिन्दी",
     english: "ENGLISH",
   },
   hi: {
-    departmentName: "स्वास्थ्य, चिकित्सा शिक्षा और परिवार कल्याण विभाग",
     issueSuffix: "मुद्दे",
     reports: "रिपोर्ट",
     issues: "मुद्दे",
@@ -68,6 +80,7 @@ const texts = {
     resolved: "समाधान हो गया",
     inProgress: "प्रगति पर",
     verified: "सत्यापित",
+    completed: "पूर्ण",
     highPriority: "उच्च प्राथमिकता",
     logout: "लॉग आउट",
     category: "श्रेणी",
@@ -76,8 +89,8 @@ const texts = {
     priority: "प्राथमिकता",
     location: "स्थान",
     actions: "कार्य",
+    assignedTo: "नियुक्त",
     issuesByStatus: "स्थिति के अनुसार मुद्दे",
-    sortByPriority: "प्राथमिकता से छाँटें",
     hindi: "हिन्दी",
     english: "ENGLISH",
   },
@@ -88,6 +101,7 @@ export default function DepartmentDashboard() {
   const [dept, setDept] = useState(null);
   const [tab, setTab] = useState("issues");
   const [locale, setLocale] = useState("en");
+  const [staffList, setStaffList] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -99,55 +113,105 @@ export default function DepartmentDashboard() {
     const deptData = JSON.parse(stored);
     setDept(deptData);
 
-    const fetchIssues = async () => {
+    let unsubIssues = () => {};
+    let unsubStaff = () => {};
+
+    const init = async () => {
       try {
-        const q = query(
+        // Seed if no issues exist for this dept
+        const qCheck = query(
           collection(db, "issues"),
           where("departmentId", "==", deptData.id)
         );
-        const querySnapshot = await getDocs(q);
-        const deptIssues = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        if (deptIssues.length === 0) {
+        const snapshotCheck = await getDocs(qCheck);
+        if (snapshotCheck.empty) {
           await seedHealthcareIssues(db, deptData.id);
-          const seededSnapshot = await getDocs(q);
-          setIssues(
-            seededSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-          );
-        } else {
-          setIssues(deptIssues);
         }
+
+        // Real-time listener for issues
+        const qIssues = query(
+          collection(db, "issues"),
+          where("departmentId", "==", deptData.id)
+        );
+        unsubIssues = onSnapshot(qIssues, (snap) => {
+          setIssues(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        });
+
+        // Real-time listener for staff
+        const qStaff = query(
+          collection(db, "staff"),
+          where("departmentId", "==", deptData.id)
+        );
+        unsubStaff = onSnapshot(qStaff, (snap) => {
+          setStaffList(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        });
       } catch (err) {
-        console.error("Error fetching issues:", err);
+        console.error("Error initializing dashboard:", err);
       }
     };
 
-    fetchIssues();
+    init();
+
+    return () => {
+      try {
+        unsubIssues();
+        unsubStaff();
+      } catch {}
+    };
   }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("department");
-    navigate("/dept-login");
+    navigate("/");
   };
 
   if (!dept) return null;
 
   // Reports logic
   const total = issues.length;
-  const resolved = issues.filter((i) => i.status === texts.en.resolved).length;
-  const inProgress = issues.filter((i) => i.status === texts.en.inProgress).length;
-  const pending = issues.filter((i) => i.status === texts.en.verified).length;
+  const resolved = issues.filter(
+    (i) => i.status === "Resolved" || i.status === "Completed"
+  ).length;
+  const inProgress = issues.filter((i) => i.status === "In Progress").length;
+  const pending = issues.filter((i) => i.status === "Verified").length;
   const highPriority = issues.filter((i) => i.priority === "High").length;
 
   const pieData = [
     { name: texts[locale].verified, value: pending },
     { name: texts[locale].inProgress, value: inProgress },
-    { name: texts[locale].resolved, value: resolved },
+    { name: texts[locale].completed, value: resolved },
   ];
   const COLORS = ["#FFBB28", "#0088FE", "#00C49F"];
+
+  // ✅ Assign staff using email + name
+  const handleAssign = async (issueId, staffEmail) => {
+    try {
+      const staff = staffList.find((s) => s.email === staffEmail) || null;
+      const payload = {
+        assignedTo: staff ? staff.email : null,
+        assignedToName: staff ? staff.name : null,
+        status: staff ? "Assigned" : "Verified",
+      };
+      await updateDoc(doc(db, "issues", issueId), payload);
+      setIssues((prev) =>
+        prev.map((i) => (i.id === issueId ? { ...i, ...payload } : i))
+      );
+    } catch (err) {
+      console.error("Failed to assign issue:", err);
+      alert("Failed to assign issue: " + err.message);
+    }
+  };
+
+  const handleStatusChangeByHead = async (issueId, newStatus) => {
+    try {
+      await updateDoc(doc(db, "issues", issueId), { status: newStatus });
+      setIssues((prev) =>
+        prev.map((i) => (i.id === issueId ? { ...i, status: newStatus } : i))
+      );
+    } catch (err) {
+      console.error("Error updating status:", err);
+    }
+  };
 
   return (
     <Box sx={{ height: "100vh", display: "flex" }}>
@@ -156,36 +220,19 @@ export default function DepartmentDashboard() {
         component="nav"
         sx={{
           background: C.olive,
-          minWidth: 380,
+          minWidth: 280,
           color: C.textLight,
           height: "100vh",
           overflow: "auto",
         }}
       >
-        <Box sx={{
-          fontWeight: 800, p: "20px 32px 10px 32px",
-          fontSize: 25, background: C.olive
-        }}>
-          Department Dashboard
-        </Box>
         <Box component="ul" sx={{ m: 0, p: 0, listStyle: "none" }}>
-          {[{
-            key: "issues",
-            text: texts[locale].issues,
-            icon: <ClipboardDocumentListIcon style={{ width: 22 }} />,
-          }, {
-            key: "reports",
-            text: texts[locale].reports,
-            icon: <ChartPieIcon style={{ width: 22 }} />,
-          }, {
-            key: "staff",
-            text: texts[locale].staff,
-            icon: <UsersIcon style={{ width: 22 }} />,
-          }, {
-            key: "settings",
-            text: texts[locale].settings,
-            icon: <Cog6ToothIcon style={{ width: 22 }} />,
-          }].map(({ key, text, icon }) => (
+          {[
+            { key: "reports", text: texts[locale].reports, icon: <ChartPieIcon style={{ width: 22 }} /> },
+            { key: "issues", text: texts[locale].issues, icon: <ClipboardDocumentListIcon style={{ width: 22 }} /> },
+            { key: "staff", text: texts[locale].staff, icon: <UsersIcon style={{ width: 22 }} /> },
+            { key: "settings", text: texts[locale].settings, icon: <Cog6ToothIcon style={{ width: 22 }} /> },
+          ].map(({ key, text, icon }) => (
             <Box
               key={key}
               component="li"
@@ -198,71 +245,44 @@ export default function DepartmentDashboard() {
                 alignItems: "center",
                 gap: 2,
                 fontSize: 19,
-                "&:hover": { bgcolor: C.oliveLight }
-              }}>
+                "&:hover": { bgcolor: C.oliveLight },
+              }}
+            >
               {icon} {text}
             </Box>
           ))}
         </Box>
       </Box>
 
-      {/* Main Content Area */}
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: "100vh",
-          bgcolor: C.bg,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        {/* Olive Bar on Top */}
-        <Box sx={{
-          width: "100%",
-          bgcolor: C.olive,
-          color: "#fff",
-          height: "68px",
-          alignItems: "center",
-          display: "flex",
-          justifyContent: "space-between",
-          px: 5,
-          py: 1,
-          fontWeight: 700,
-        }}>
-          <Typography
-            variant="h5"
-            sx={{ fontWeight: "bold", letterSpacing: ".5px" }}
-          >
-            {texts[locale].departmentName}
-            {tab === "issues" && " " + texts[locale].issueSuffix}
+      {/* Main */}
+      <Box sx={{ flex: 1, minHeight: "100vh", bgcolor: C.bg }}>
+        {/* Top Bar */}
+        <Box
+          sx={{
+            width: "100%",
+            bgcolor: C.olive,
+            color: "#fff",
+            height: "68px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            px: 5,
+          }}
+        >
+          <Typography variant="h6" fontWeight={700}>
+            {dept.name} Department {tab === "issues" && texts[locale].issueSuffix}
           </Typography>
           <Box sx={{ display: "flex", gap: 2 }}>
             <Button
               variant="contained"
-              sx={{
-                bgcolor: C.oliveLight,
-                color: "white",
-                fontWeight: 600,
-                minWidth: 80,
-                borderRadius: 2,
-                boxShadow: "none",
-                "&:hover": { bgcolor: C.accent },
-              }}
+              sx={{ bgcolor: C.oliveLight, "&:hover": { bgcolor: C.accent } }}
               onClick={() => setLocale(locale === "en" ? "hi" : "en")}
             >
-              {locale === "en" ? texts["en"].hindi : texts["hi"].english}
+              {locale === "en" ? texts.en.hindi : texts.hi.english}
             </Button>
             <Button
               variant="contained"
-              sx={{
-                bgcolor: C.oliveLight,
-                color: "white",
-                fontWeight: 600,
-                minWidth: 100,
-                borderRadius: 2,
-                boxShadow: "none",
-                "&:hover": { bgcolor: C.accent },
-              }}
+              sx={{ bgcolor: C.oliveLight, "&:hover": { bgcolor: C.accent } }}
               onClick={handleLogout}
             >
               {texts[locale].logout}
@@ -271,164 +291,117 @@ export default function DepartmentDashboard() {
         </Box>
 
         {/* Content */}
-        <Box sx={{ flex: 1, p: 4, overflowY: "auto" }}>
-          {/* ISSUES TAB */}
+        <Box sx={{ p: 4, overflowY: "auto" }}>
           {tab === "issues" && (
-            <>
-              {/* Sort button */}
-              <Box display="flex" justifyContent="flex-end" mb={2}>
-                <Button
-                  variant="contained"
-                  sx={{
-                    bgcolor: C.accent,
-                    fontWeight: 700,
-                    color: "#fff",
-                    borderRadius: 2,
-                    minWidth: 180,
-                    boxShadow: "none",
-                    "&:hover": { bgcolor: C.oliveDark },
-                  }}
-                  onClick={() => {
-                    const priorityOrder = { High: 3, Medium: 2, Low: 1 };
-                    setIssues((prev) =>
-                      [...prev].sort(
-                        (a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]
-                      )
-                    );
-                  }}
-                >
-                  {texts[locale].sortByPriority}
-                </Button>
-              </Box>
-
-              <Paper sx={{ mb: 2 }}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: C.oliveLight }}>
-                      <TableCell sx={{ color: "white", fontWeight: 700 }}>
-                        {texts[locale].category}
-                      </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: 700 }}>
-                        {texts[locale].description}
-                      </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: 700 }}>
-                        {texts[locale].status}
-                      </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: 700 }}>
-                        {texts[locale].priority}
-                      </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: 700 }}>
-                        {texts[locale].location}
-                      </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: 700 }}>
-                        {texts[locale].actions}
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {issues.length > 0 ? (
-                      issues.map((issue) => (
-                        <TableRow key={issue.id}>
-                          <TableCell>{issue.category}</TableCell>
-                          <TableCell>{issue.description}</TableCell>
-                          <TableCell>{issue.status}</TableCell>
-                          <TableCell>{issue.priority}</TableCell>
-                          <TableCell>
-                            Lat: {issue.location?.lat}, Lng: {issue.location?.lng}
-                          </TableCell>
-                          <TableCell>
-                            <select
-                              value={issue.status}
-                              onChange={async (e) => {
-                                const newStatus = e.target.value;
-                                try {
-                                  await updateDoc(doc(db, "issues", issue.id), {
-                                    status: newStatus,
-                                  });
-                                  setIssues((prev) =>
-                                    prev.map((i) =>
-                                      i.id === issue.id ? { ...i, status: newStatus } : i
-                                    )
-                                  );
-                                } catch (err) {
-                                  console.error("Error updating status:", err);
-                                }
-                              }}
+            <Paper>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: C.oliveLight }}>
+                    <TableCell sx={{ color: "white" }}>{texts[locale].category}</TableCell>
+                    <TableCell sx={{ color: "white" }}>{texts[locale].description}</TableCell>
+                    <TableCell sx={{ color: "white" }}>{texts[locale].status}</TableCell>
+                    <TableCell sx={{ color: "white" }}>{texts[locale].priority}</TableCell>
+                    <TableCell sx={{ color: "white" }}>{texts[locale].location}</TableCell>
+                    <TableCell sx={{ color: "white" }}>{texts[locale].assignedTo}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {issues.length ? (
+                    issues.map((issue) => (
+                      <TableRow key={issue.id}>
+                        <TableCell>{issue.category}</TableCell>
+                        <TableCell>{issue.description}</TableCell>
+                        <TableCell>
+                          <select
+                            value={issue.status || "Verified"}
+                            onChange={(e) =>
+                              handleStatusChangeByHead(issue.id, e.target.value)
+                            }
+                          >
+                            <option value="Verified">{texts[locale].verified}</option>
+                            <option value="In Progress">{texts[locale].inProgress}</option>
+                            <option value="Completed">{texts[locale].completed}</option>
+                          </select>
+                        </TableCell>
+                        <TableCell>{issue.priority}</TableCell>
+                        <TableCell>
+                          Lat: {issue.location?.lat || "-"}, Lng: {issue.location?.lng || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <FormControl size="small" fullWidth>
+                            <InputLabel>Assign</InputLabel>
+                            <Select
+                              value={issue.assignedTo || ""}
+                              onChange={(e) => handleAssign(issue.id, e.target.value)}
                             >
-                              <option value={texts["en"].verified}>
-                                {texts[locale].verified}
-                              </option>
-                              <option value={texts["en"].inProgress}>
-                                {texts[locale].inProgress}
-                              </option>
-                              <option value={texts["en"].resolved}>
-                                {texts[locale].resolved}
-                              </option>
-                            </select>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center">
-                          No issues found.
+                              <MenuItem value="">
+                                <em>Unassigned</em>
+                              </MenuItem>
+                              {staffList.map((s) => (
+                                <MenuItem key={s.id} value={s.email}>
+                                  {s.name} ({s.email})
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          {issue.assignedToName && (
+                            <Typography variant="caption">
+                              {issue.assignedToName}
+                            </Typography>
+                          )}
                         </TableCell>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </Paper>
-            </>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        No issues found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Paper>
           )}
 
-          {/* STAFF TAB */}
           {tab === "staff" && <DepartmentStaff dept={dept} />}
 
-          {/* REPORTS TAB */}
           {tab === "reports" && (
             <Box>
-              <Box sx={{ display: "flex", gap: 2, mb: 4, mt: 1 }}>
+              <Box sx={{ display: "flex", gap: 2, mb: 4 }}>
                 {[
-                  { label: texts[locale].total, value: total, filled: true },
+                  { label: texts[locale].total, value: total },
                   { label: texts[locale].resolved, value: resolved },
-                  { label: texts[locale].inProgress, value: inProgress, filled: true },
+                  { label: texts[locale].inProgress, value: inProgress },
                   { label: texts[locale].verified, value: pending },
-                  { label: texts[locale].highPriority, value: highPriority, filled: true },
-                ].map((stat, i) => (
+                  { label: texts[locale].highPriority, value: highPriority },
+                ].map((s, i) => (
                   <Paper
                     key={i}
-                    elevation={3}
                     sx={{
                       width: 150,
-                      height: 120,
+                      height: 100,
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "center",
                       alignItems: "center",
-                      bgcolor: stat.filled ? C.olive : "#fff",
-                      color: stat.filled ? "#fff" : "#212121",
-                      fontWeight: 500,
-                      fontSize: 16,
+                      bgcolor: C.oliveLight,
+                      color: "white",
                     }}
                   >
-                    <Typography variant="h6" sx={{ mb: 1 }}>
-                      {stat.label}
-                    </Typography>
-                    <Typography variant="h5">{stat.value}</Typography>
+                    <Typography variant="subtitle1">{s.label}</Typography>
+                    <Typography variant="h6">{s.value}</Typography>
                   </Paper>
                 ))}
               </Box>
               <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" mb={2}>
-                  {texts[locale].issuesByStatus}
-                </Typography>
+                <Typography variant="h6">{texts[locale].issuesByStatus}</Typography>
                 <PieChart width={400} height={300}>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    fill="#8884d8"
                     dataKey="value"
                     label
                   >
@@ -443,7 +416,6 @@ export default function DepartmentDashboard() {
             </Box>
           )}
 
-          {/* SETTINGS TAB */}
           {tab === "settings" && (
             <Paper sx={{ p: 4 }}>
               <Typography variant="h6">{texts[locale].settings}</Typography>
