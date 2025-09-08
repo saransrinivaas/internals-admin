@@ -202,7 +202,9 @@ export default function UnifiedLogin() {
       if (!deptSnap.empty) {
         const dept = { id: deptSnap.docs[0].id, ...deptSnap.docs[0].data() };
         localStorage.setItem("department", JSON.stringify(dept));
-        navigate(/dept-dashboard/`${dept.id}`);
+        // ✅ RIGHT (for React Router v6)
+navigate(`/dept-dashboard/${dept.id}`);
+
         return;
       }
 
