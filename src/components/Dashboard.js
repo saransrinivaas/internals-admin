@@ -2,39 +2,39 @@ import React, { useEffect, useState } from "react";
 import {
   Box,
   Typography,
-  Button,
   Card,
   CardContent,
   Grid,
-  Container
+  Container,
+  Button,
 } from "@mui/material";
-import BarChartIcon from '@mui/icons-material/BarChart';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { Bar, Line } from "react-chartjs-2";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import AutorenewIcon from "@mui/icons-material/Autorenew";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import PieChartIcon from "@mui/icons-material/PieChart";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import PeopleIcon from "@mui/icons-material/People";
+import GroupIcon from "@mui/icons-material/Group";
+import { Bar, Pie } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
-  PointElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
 } from "chart.js";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
-  PointElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend
@@ -44,43 +44,60 @@ export default function Dashboard() {
   const { t, i18n } = useTranslation();
   const [issues, setIssues] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [staff, setStaff] = useState([]);
+
   useEffect(() => {
     const fetchIssues = async () => {
       const snap = await getDocs(collection(db, "issues"));
-      const data = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setIssues(data);
+      setIssues(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     };
     const fetchCategories = async () => {
       const snap = await getDocs(collection(db, "category"));
-      const data = snap.docs.map((doc) => doc.data().CategoryName);
-      setCategories(data);
+      setCategories(snap.docs.map((doc) => doc.data().CategoryName));
+    };
+    const fetchDepartments = async () => {
+      const snap = await getDocs(collection(db, "departments"));
+      setDepartments(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    };
+    const fetchStaff = async () => {
+      const snap = await getDocs(collection(db, "staff"));
+      setStaff(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     };
     fetchIssues();
     fetchCategories();
+    fetchDepartments();
+    fetchStaff();
   }, []);
 
   const totalIssues = issues.length;
-  const newIssues = issues.filter((i) => i.status === "New").length;
+  const verifiedIssues = issues.filter((i) => i.status === "Verified").length;
   const inProgress = issues.filter((i) => i.status === "In Progress").length;
   const resolved = issues.filter((i) => i.status === "Resolved").length;
-  const categoryLabels = categories.slice(0, 5);
 
-  // Bar chart data
+  const totalDepartments = departments.length;
+  const totalStaff = staff.length;
+
+  // Calculate top 5 categories with most issues
+  const categoryCounts = categories.map((cat) => ({
+    name: cat,
+    count: issues.filter((issue) => issue.category === cat).length,
+  }));
+  const sortedCategories = categoryCounts.sort((a, b) => b.count - a.count);
+  const topCategories = sortedCategories.slice(0, 5);
+
   const barData = {
-    labels: categoryLabels.map((label) =>
-      t(label?.toLowerCase()) || label
-    ),
+    labels: topCategories.map((cat) => t(cat.name.toLowerCase()) || cat.name),
     datasets: [
       {
         label: t("volume") || "Volume",
-        data: categoryLabels.map((label) =>
-          issues.filter((issue) => issue.category === label).length
-        ),
+        data: topCategories.map((cat) => cat.count),
         backgroundColor: "#6B8A47",
         borderRadius: 6,
       },
     ],
   };
+
   const barOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -90,59 +107,53 @@ export default function Dashboard() {
       loop: false,
     },
     plugins: {
-      legend: { display: true, position: "top", labels: { font: { size: 15 } } },
-      title: { display: false },
-      tooltip: { enabled: true, animation: { duration: 1000 } },
+      legend: {
+        display: true,
+        position: "top",
+        labels: { font: { size: 15 } },
+      },
+      tooltip: { enabled: true },
     },
     interaction: {
-      mode: 'nearest',
-      axis: 'x',
+      mode: "nearest",
+      axis: "x",
       intersect: false,
     },
   };
 
-  // Line chart data
-  const lineData = {
+  const pieData = {
     labels: [
-      t("week1") || "Week 1",
-      t("week2") || "Week 2",
-      t("week3") || "Week 3",
-      t("week4") || "Week 4"
+      t("verified") || "Verified",
+      t("inProgress") || "In Progress",
+      t("resolved") || "Resolved",
     ],
     datasets: [
       {
-        label: t("sla") || "SLA %",
-        data: [85, 90, 95, 88],
-        fill: false,
-        borderColor: "#6B8A47",
-        tension: 0.45,
-        pointBorderColor: "#3b5d3a",
-        pointBackgroundColor: "#8CA68C",
-        pointRadius: 7,
-        pointHoverRadius: 12,
+        label: t("issueStatus") || "Issue Status",
+        data: [verifiedIssues, inProgress, resolved],
+        backgroundColor: ["#FFA726", "#FFB300", "#388E3C"],
+        hoverOffset: 30,
+        borderWidth: 2,
+        borderColor: "#fff",
       },
     ],
   };
-  const lineOptions = {
+
+  const pieOptions = {
     responsive: true,
     maintainAspectRatio: false,
     animation: {
-      duration: 1800,
-      easing: "easeInOutQuart",
+      duration: 1500,
+      easing: "easeOutBounce",
       loop: false,
     },
-    elements: {
-      line: { tension: 0.45 },
-    },
     plugins: {
-      legend: { display: true, position: "top", labels: { font: { size: 15 } } },
-      title: { display: false },
-      tooltip: { enabled: true, animation: { duration: 900 } },
-    },
-    interaction: {
-      mode: 'index',
-      axis: 'x',
-      intersect: false,
+      legend: {
+        display: true,
+        position: "bottom",
+        labels: { font: { size: 15 } },
+      },
+      tooltip: { enabled: true },
     },
   };
 
@@ -159,8 +170,10 @@ export default function Dashboard() {
         boxShadow: "0 2px 20px #8BA47322",
         mx: { xs: 1, md: 2 },
         mb: { xs: 2, md: 0 },
-        transition: 'transform 0.15s cubic-bezier(.38,.71,.61,.95)',
-        '&:hover': { transform: 'scale(1.07)' }
+        transition: "transform 0.3s",
+        "&:hover": {
+          transform: "scale(1.07)",
+        },
       }}
       elevation={0}
     >
@@ -168,17 +181,12 @@ export default function Dashboard() {
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           {icon}
           <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color }}>
+            <Typography variant="subtitle2" sx={{ color, fontWeight: 700 }}>
               {label}
             </Typography>
             <Typography
               variant="h5"
-              sx={{
-                color: secondary || "#333",
-                fontWeight: 800,
-                mt: 0.5,
-                lineHeight: 1,
-              }}
+              sx={{ color: secondary || "#333", fontWeight: 800, mt: 0.5 }}
             >
               {value}
             </Typography>
@@ -191,115 +199,132 @@ export default function Dashboard() {
   return (
     <Box sx={{ bgcolor: "#f6f7f1", minHeight: "100vh" }}>
       <Container maxWidth="md" sx={{ py: 4 }}>
-        {/* Language Toggle Button */}
-        
-
-        <Typography
-          variant="h4"
+     
+        <Box
           sx={{
-            fontWeight: 900,
-            color: "#3C4F2F",
-            fontFamily: "inherit",
-            mb: 4,
-            textShadow: "0 1px 7px #b1c4a533",
-            textAlign: "center"
+            display: "flex",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            mb: 3,
+            gap: 3,
           }}
         >
-          {t("superAdmin") || "Super Admin Dashboard"}
-        </Typography>
+          <StatCardUI
+            icon={<BarChartIcon sx={{ color: "#6B8A47", fontSize: 28 }} />}
+            label={t("totalIssues") || "Total Issues"}
+            value={totalIssues}
+          />
+          <StatCardUI
+            icon={<PeopleIcon sx={{ color: "#6B8A47", fontSize: 28 }} />}
+            label={t("totalDepartments") || "Total Departments"}
+            value={totalDepartments}
+          />
+          <StatCardUI
+            icon={<GroupIcon sx={{ color: "#6B8A47", fontSize: 28 }} />}
+            label={t("totalStaff") || "Total Staff"}
+            value={totalStaff}
+          />
+          <StatCardUI
+            icon={<AssignmentIcon sx={{ color: "#6B8A47", fontSize: 28 }} />}
+            label={t("verified") || "Verified Issues"}
+            value={verifiedIssues}
+          />
+          <StatCardUI
+            icon={<AutorenewIcon sx={{ color: "#FFB300", fontSize: 28 }} />}
+            label={t("inProgress") || "In Progress"}
+            value={inProgress}
+          />
+          <StatCardUI
+            icon={<CheckCircleIcon sx={{ color: "#388E3C", fontSize: 28 }} />}
+            label={t("resolved") || "Resolved"}
+            value={resolved}
+          />
+        </Box>
 
-        {/* Stats Cards */}
-        <Grid container spacing={2} sx={{ mb: 2, justifyContent: "center" }}>
-          <Grid item xs={6} md={3}>
-            <StatCardUI
-              icon={<AssignmentIcon sx={{ color: "#6B8A47", fontSize: 28 }} />}
-              label={t("total") || "Total Issues"}
-              value={totalIssues}
-              color="#6B8A47"
-              secondary="#3C4F2F"
-            />
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <StatCardUI
-              icon={<ReportProblemIcon sx={{ color: "#FFA726", fontSize: 28 }} />}
-              label={t("new") || "New Issues"}
-              value={newIssues}
-              color="#FFA726"
-              secondary="#FFA726"
-            />
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <StatCardUI
-              icon={<AutorenewIcon sx={{ color: "#FFB300", fontSize: 28 }} />}
-              label={t("inProgress") || "In Progress"}
-              value={inProgress}
-              color="#FFB300"
-              secondary="#FFB300"
-            />
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <StatCardUI
-              icon={<CheckCircleIcon sx={{ color: "#388E3C", fontSize: 28 }} />}
-              label={t("resolved") || "Resolved"}
-              value={resolved}
-              color="#388E3C"
-              secondary="#388E3C"
-            />
-          </Grid>
-        </Grid>
-
-        {/* Charts: stacked vertically and centered */}
         <Grid container spacing={2} direction="column" alignItems="center">
-          <Grid item xs={12} sx={{ width: "100%" }}>
-            <Card sx={{
-              bgcolor: "#fff",
-              borderRadius: 5,
-              boxShadow: "0 2px 12px #79a06419",
-              width: '100%',
-              maxWidth: 550,
-              mx: "auto",
-              p: { xs: 1, md: 2 }
-            }}>
+          <Grid item xs={12} sx={{ width: "100%", maxWidth: 600 }}>
+            <Card
+              sx={{
+                bgcolor: "#fff",
+                borderRadius: 5,
+                boxShadow: "0 2px 12px #79a06419",
+                width: "100%",
+                maxWidth: 550,
+                mx: "auto",
+                p: { xs: 1, md: 2 },
+              }}
+            >
               <CardContent>
-                <Typography variant="h6" fontWeight="bold"
-                  sx={{ color: "#3b5d3a", mb: 2, display: "flex", alignItems: "center" }}>
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  sx={{
+                    color: "#3b5d3a",
+                    mb: 2,
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
                   <BarChartIcon sx={{ mr: 1, color: "#6B8A47" }} />
                   {t("topCategories") || "Top Categories"}
                 </Typography>
-                <Box sx={{
-                  overflow: "hidden",
-                  height: { xs: 100, sm: 140, md: 160 },
-                  width: "100%",
-                  mx: "auto"
-                }}>
-                  <Bar data={barData} options={barOptions} style={{ width: "100%", height: "100%" }} />
+                <Box
+                  sx={{
+                    overflow: "hidden",
+                    height: { xs: 100, sm: 140, md: 160 },
+                    width: "100%",
+                    mx: "auto",
+                  }}
+                >
+                  <Bar
+                    data={barData}
+                    options={barOptions}
+                    style={{ width: "100%", height: "100%" }}
+                  />
                 </Box>
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sx={{ width: "100%" }}>
-            <Card sx={{
-              bgcolor: "#fff",
-              borderRadius: 5,
-              boxShadow: "0 2px 12px #79a06419",
-              width: '100%',
-              maxWidth: 550,
-              mx: "auto",
-              p: { xs: 1, md: 2 }
-            }}>
+
+          <Grid item xs={12} sx={{ width: "100%", maxWidth: 600, mt: 4 }}>
+            <Card
+              sx={{
+                bgcolor: "#fff",
+                borderRadius: 5,
+                boxShadow: "0 2px 12px #79a06419",
+                width: "100%",
+                maxWidth: 550,
+                mx: "auto",
+                p: { xs: 1, md: 2 },
+              }}
+            >
               <CardContent>
-                <Typography variant="h6" fontWeight="bold"
-                  sx={{ color: "#3b5d3a", mb: 2, display: "flex", alignItems: "center" }}>
-                  <PlaylistAddCheckIcon sx={{ mr: 1, color: "#6B8A47" }} />
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  sx={{
+                    color: "#3b5d3a",
+                    mb: 2,
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <PieChartIcon sx={{ mr: 1, color: "#6B8A47" }} />
                   {t("resolutionPerformance") || "Resolution Performance"}
                 </Typography>
-                <Box sx={{
-                  overflow: "hidden",
-                  height: { xs: 100, sm: 140, md: 160 },
-                  width: "100%",
-                  mx: "auto"
-                }}>
-                  <Line data={lineData} options={lineOptions} style={{ width: "100%", height: "100%" }} />
+                <Box
+                  sx={{
+                    overflow: "hidden",
+                    height: { xs: 100, sm: 140, md: 160 },
+                    width: "100%",
+                    mx: "auto",
+                  }}
+                >
+                  <Pie
+                    data={pieData}
+                    options={pieOptions}
+                    style={{ width: "100%", height: "100%" }}
+                  />
                 </Box>
               </CardContent>
             </Card>

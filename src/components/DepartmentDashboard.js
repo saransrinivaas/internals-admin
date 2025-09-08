@@ -7,11 +7,13 @@ import {
   where,
   getDocs,
   doc,
+  getDoc,
   updateDoc,
   onSnapshot,
 } from "firebase/firestore";
 import DepartmentStaff from "./DepartmentStaff";
-import { useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+
 import {
   Box,
   Typography,
@@ -103,69 +105,88 @@ export default function DepartmentDashboard() {
   const [locale, setLocale] = useState("en");
   const [staffList, setStaffList] = useState([]);
   const navigate = useNavigate();
+  const { deptId } = useParams(); // ✅ route param
 
+  
   useEffect(() => {
-    const stored = localStorage.getItem("department");
-    if (!stored) {
-      navigate("/dept-login");
-      return;
-    }
-    const deptData = JSON.parse(stored);
-    setDept(deptData);
+  let unsubIssues = () => {};
+  let unsubStaff = () => {};
 
-    let unsubIssues = () => {};
-    let unsubStaff = () => {};
-
-    const init = async () => {
-      try {
-        // Seed if no issues exist for this dept
-        const qCheck = query(
-          collection(db, "issues"),
-          where("departmentId", "==", deptData.id)
-        );
-        const snapshotCheck = await getDocs(qCheck);
-        if (snapshotCheck.empty) {
-          await seedHealthcareIssues(db, deptData.id);
-        }
-
-        // Real-time listener for issues
-        const qIssues = query(
-          collection(db, "issues"),
-          where("departmentId", "==", deptData.id)
-        );
-        unsubIssues = onSnapshot(qIssues, (snap) => {
-          setIssues(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        });
-
-        // Real-time listener for staff
-        const qStaff = query(
-          collection(db, "staff"),
-          where("departmentId", "==", deptData.id)
-        );
-        unsubStaff = onSnapshot(qStaff, (snap) => {
-          setStaffList(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        });
-      } catch (err) {
-        console.error("Error initializing dashboard:", err);
+  const init = async () => {
+    try {
+      if (!deptId) {
+        navigate("/login");
+        return;
       }
-    };
 
-    init();
+      const deptRef = doc(db, "departments", deptId);
+      const deptSnap = await getDoc(deptRef);
 
-    return () => {
-      try {
-        unsubIssues();
-        unsubStaff();
-      } catch {}
-    };
-  }, [navigate]);
+      if (!deptSnap.exists()) {
+        navigate("/login");
+        return;
+      }
+
+      const deptData = { id: deptSnap.id, ...deptSnap.data() };
+      setDept(deptData);
+
+      // Seed issues if empty
+      const qCheck = query(
+        collection(db, "issues"),
+        where("departmentId", "==", deptData.id)
+      );
+      const snapshotCheck = await getDocs(qCheck);
+      if (snapshotCheck.empty) {
+        await seedHealthcareIssues(db, deptData.id);
+      }
+
+      // Real-time listener for issues
+      const qIssues = query(
+        collection(db, "issues"),
+        where("departmentId", "==", deptData.id)
+      );
+      unsubIssues = onSnapshot(qIssues, (snap) => {
+        setIssues(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      });
+
+      // Real-time listener for staff
+      const qStaff = query(
+        collection(db, "staff"),
+        where("departmentId", "==", deptData.id)
+      );
+      unsubStaff = onSnapshot(qStaff, (snap) => {
+        setStaffList(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      });
+    } catch (err) {
+      console.error("Error initializing dashboard:", err);
+      // Optionally handle error with state for user feedback
+    }
+  };
+
+  init();
+
+  return () => {
+    try {
+      unsubIssues();
+      unsubStaff();
+    } catch {}
+  };
+}, [deptId, navigate]); // depend on deptId, navigate
+// ✅ depend on deptId
 
   const handleLogout = () => {
     localStorage.removeItem("department");
     navigate("/");
   };
 
-  if (!dept) return null;
+ if (!dept) {
+  return (
+    <div style={{ textAlign: "center", marginTop: "60px", fontSize: "1.2rem" }}>
+      Loading department dashboard...
+    </div>
+  );
+}
+
 
   // Reports logic
   const total = issues.length;

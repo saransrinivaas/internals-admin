@@ -1,3 +1,358 @@
+
+// import React, { useEffect, useState } from "react";
+// import {
+//   Grid,
+//   Card,
+//   CardContent,
+//   Typography,
+//   Box,
+//   Dialog,
+//   DialogTitle,
+//   DialogContent,
+//   DialogActions,
+//   Button,
+//   MenuItem,
+//   Select,
+//   Paper,
+// } from "@mui/material";
+// import EnhancedEncryptionIcon from "@mui/icons-material/EnhancedEncryption";
+// import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
+// import SchoolIcon from "@mui/icons-material/School";
+// import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
+// import OpacityIcon from "@mui/icons-material/Opacity";
+// import FlashOnIcon from "@mui/icons-material/FlashOn";
+// import LightbulbIcon from "@mui/icons-material/Lightbulb";
+// import DeleteIcon from "@mui/icons-material/Delete";
+// import RecyclingIcon from "@mui/icons-material/Recycling";
+// import PetsIcon from "@mui/icons-material/Pets";
+// import SecurityIcon from "@mui/icons-material/Security";
+// import WavesIcon from "@mui/icons-material/Waves";
+// import NatureIcon from "@mui/icons-material/Nature";
+// import WcIcon from "@mui/icons-material/Wc";
+// import BugReportIcon from "@mui/icons-material/BugReport";
+// import DomainIcon from "@mui/icons-material/Domain";
+// import AltRouteIcon from "@mui/icons-material/AltRoute";
+// import EmojiObjectsIcon from "@mui/icons-material/EmojiObjects";
+// import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+// import ChatIcon from "@mui/icons-material/Chat";
+// import { useNavigate } from "react-router-dom";
+// import { db } from "../firebase";
+// import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+
+// const toKey = (s) =>
+//   (s || "")
+//     .replace(/[\s&]/g, "")
+//     .replace(/[^a-zA-Z0-9]/g, "")
+//     .toLowerCase();
+
+// const visualMap = {
+//   pothole: { icon: <DirectionsCarIcon />, bg: "#fcf7de" },
+//   pollution: { icon: <WavesIcon />, bg: "#d3f4f1" },
+//   powersupply: { icon: <FlashOnIcon />, bg: "#fff1d0" },
+//   streetlight: { icon: <LightbulbIcon />, bg: "#fdecef" },
+//   sanitationandhygiene: { icon: <EnhancedEncryptionIcon />, bg: "#d6f1d9" },
+//   solidwaste: { icon: <DeleteIcon />, bg: "#f6f6f6" },
+//   recycling: { icon: <RecyclingIcon />, bg: "#dcdcf1" },
+//   streetdogs: { icon: <PetsIcon />, bg: "#f8ebed" },
+//   buildingsafety: { icon: <SecurityIcon />, bg: "#e9f5f3" },
+//   infrastructureandmaintenance: { icon: <DomainIcon />, bg: "#d1eff0" },
+//   roadsandtraffic: { icon: <AltRouteIcon />, bg: "#edf0f8" },
+//   mosquitomaintenance: { icon: <BugReportIcon />, bg: "#e5f3fc" },
+//   publictransport: { icon: <DirectionsBusIcon />, bg: "#dde2ff" },
+//   water: { icon: <OpacityIcon />, bg: "#e6f2ff" },
+//   medical: { icon: <LocalHospitalIcon />, bg: "#f0e6ff" },
+//   schoolandcollege: { icon: <SchoolIcon />, bg: "#fff0e6" },
+//   treeandgreencover: { icon: <NatureIcon />, bg: "#dff0d8" },
+//   publictoilet: { icon: <WcIcon />, bg: "#e9f6f2" },
+//   others: { icon: <EmojiObjectsIcon />, bg: "#f0f0f0" },
+//   default: { icon: <ChatIcon />, bg: "#f5f5f5" },
+// };
+
+// const getVisual = (name) => {
+//   const k = toKey(name);
+//   return visualMap[k] || visualMap.default;
+// };
+
+// const getUnique = (arr) => {
+//   const seen = new Set();
+//   return arr.filter((item) => {
+//     const k = toKey(item.name);
+//     if (seen.has(k) || !k) return false;
+//     seen.add(k);
+//     return true;
+//   });
+// };
+
+// export default function CategoryPage() {
+//   const [categories, setCategories] = useState([]);
+//   const [issues, setIssues] = useState([]);
+//   const [departments, setDepartments] = useState([]);
+//   const [openDialog, setOpenDialog] = useState(false);
+//   const [dialogType, setDialogType] = useState("");
+//   const [categoryDetails, setCategoryDetails] = useState(null);
+//   const [selectedIssue, setSelectedIssue] = useState(null);
+//   const [allocDept, setAllocDept] = useState("");
+
+//   const navigate = useNavigate();
+
+//   useEffect(() => {
+//     async function loadCategories() {
+//       const snap = await getDocs(collection(db, "category"));
+//       const cats = snap.docs.map((doc) => ({
+//         id: doc.id,
+//         name: doc.data().CategoryName || "",
+//         departmentId: doc.data().departmentId || "",
+//         departmentEmail: doc.data().departmentEmail || "",
+//         department: doc.data().department || "", // for backward compatibility
+//       }));
+//       setCategories(getUnique(cats));
+//     }
+//     loadCategories();
+
+//     async function loadIssues() {
+//       const snap = await getDocs(collection(db, "issues"));
+//       setIssues(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+//     }
+//     loadIssues();
+
+//     async function loadDepartments() {
+//       const snap = await getDocs(collection(db, "departments"));
+//       setDepartments(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+//     }
+//     loadDepartments();
+//   }, []);
+
+//   const getCount = (catName) => {
+//     return issues.filter((issue) => toKey(issue.category) === toKey(catName)).length;
+//   };
+
+//   const handleClick = (cat) => {
+//     setSelectedIssue(null);
+//     setAllocDept("");
+//     if (toKey(cat.name) === "others") {
+//       setDialogType("others");
+//       setOpenDialog(true);
+//     } else {
+//       setCategoryDetails(cat);
+//       setDialogType("details");
+//       setOpenDialog(true);
+//     }
+//   };
+
+//   // Department dashboard navigation logic using departmentId if available, else fallback to email
+//   const handleViewDeptDashboard = () => {
+//     // 1. If departmentId is present in category, use it directly
+//     if (categoryDetails?.departmentId) {
+//       navigate(`/dept-dashboard/${categoryDetails.departmentId}`);
+//       setOpenDialog(false);
+//       return;
+//     }
+//     // 2. Fallback: Look up department by email in case of earlier data
+//     if (categoryDetails?.departmentEmail) {
+//       const found = departments.find(
+//         (d) => (d.email || "").trim().toLowerCase() === categoryDetails.departmentEmail.trim().toLowerCase()
+//       );
+//       if (found) {
+//         navigate(`/dept-dashboard/${found.id}`);
+//         setOpenDialog(false);
+//         return;
+//       }
+//     }
+//     // 3. Final fallback: Try by department name, normalize + warn if nothing found
+//     if (categoryDetails?.department) {
+//       const found = departments.find(
+//         (d) => (d.name || "").trim().toLowerCase() === categoryDetails.department.trim().toLowerCase()
+//       );
+//       if (found) {
+//         navigate(`/dept-dashboard/${found.id}`);
+//         setOpenDialog(false);
+//         return;
+//       }
+//     }
+//     alert("Department not found for this category. Please check data integrity.");
+//   };
+
+//   const handleAllocate = async (issueId) => {
+//     if (!allocDept) return;
+//     try {
+//       await updateDoc(doc(db, "issues", issueId), { department: allocDept });
+//       alert("Department Assigned!");
+//       setAllocDept("");
+//       setSelectedIssue(null);
+//       setOpenDialog(false);
+//     } catch (err) {
+//       alert("Failed to allocate department: " + err.message);
+//     }
+//   };
+
+//   return (
+//     <Box sx={{ p: { xs: 1, md: 4 }, minHeight: "100vh", bgcolor: "#f7f7f7" }}>
+//       <Box
+//         sx={{
+//           maxWidth: 1100,
+//           margin: "auto",
+//           p: { xs: 2, md: 5 },
+//           bgcolor: "#fff",
+//           borderRadius: 3,
+//         }}
+//       >
+//         <Typography variant="h5" align="center" fontWeight="bold" gutterBottom>
+//           Grievance Categories
+//         </Typography>
+//         <Grid container spacing={3} justifyContent="center">
+//           {categories.map((cat) => {
+//             const { icon, bg } = getVisual(cat.name);
+//             return (
+//               <Grid
+//                 key={cat.id}
+//                 item
+//                 xs={12}
+//                 sm={6}
+//                 md={4}
+//                 lg={3}
+//                 sx={{ display: "flex", justifyContent: "center" }}
+//               >
+//                 <Card
+//                   onClick={() => handleClick(cat)}
+//                   sx={{
+//                     width: 170,
+//                     height: 190,
+//                     borderRadius: 4,
+//                     display: "flex",
+//                     flexDirection: "column",
+//                     alignItems: "center",
+//                     justifyContent: "center",
+//                     cursor: "pointer",
+//                     backgroundColor: "#fafdff",
+//                     boxShadow: "0 4px 12px #dde4dc44",
+//                     transition: "transform 0.17s, box-shadow 0.19s",
+//                     "&:hover": { boxShadow: 8, transform: "scale(1.055)" },
+//                     px: 1,
+//                   }}
+//                 >
+//                   <Box
+//                     sx={{
+//                       backgroundColor: bg,
+//                       borderRadius: "50%",
+//                       width: 60,
+//                       height: 60,
+//                       display: "flex",
+//                       justifyContent: "center",
+//                       alignItems: "center",
+//                       mb: 2,
+//                       boxShadow: "0 4px 12px #eaece7",
+//                     }}
+//                   >
+//                     {React.cloneElement(icon, { sx: { fontSize: 32, color: "#35787e" } })}
+//                   </Box>
+//                   <CardContent sx={{ p: 0, textAlign: "center" }}>
+//                     <Typography
+//                       variant="body1"
+//                       sx={{ fontWeight: 700, fontSize: 17, textTransform: "capitalize", mb: 0.2, color: "#232b36" }}
+//                     >
+//                       {cat.name}
+//                     </Typography>
+//                     <Typography variant="body2" color="textSecondary">
+//                       Issues: {getCount(cat.name)}
+//                     </Typography>
+//                   </CardContent>
+//                 </Card>
+//               </Grid>
+//             );
+//           })}
+//         </Grid>
+//       </Box>
+
+//       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+//         {dialogType === "details" && (
+//           <>
+//             <DialogTitle>{categoryDetails?.name} Details</DialogTitle>
+//             <DialogContent>
+//               <Typography gutterBottom>
+//                 <strong>Department:</strong> {categoryDetails?.department || "N/A"}
+//               </Typography>
+//               <Typography gutterBottom>
+//                 <strong>Total Issues:</strong> {getCount(categoryDetails?.name)}
+//               </Typography>
+//             </DialogContent>
+//             <DialogActions>
+//               <Button variant="contained" onClick={handleViewDeptDashboard}>
+//                 View Department Dashboard
+//               </Button>
+//               <Button variant="outlined" onClick={() => setOpenDialog(false)}>
+//                 Close
+//               </Button>
+//             </DialogActions>
+//           </>
+//         )}
+
+//         {dialogType === "others" && (
+//           <>
+//             <DialogTitle>Unassigned "Others" Issues</DialogTitle>
+//             <DialogContent>
+//               {issues.filter((i) => toKey(i.category) === "others").length === 0 ? (
+//                 <Typography>No 'Others' issues found.</Typography>
+//               ) : (
+//                 issues
+//                   .filter((i) => toKey(i.category) === "others")
+//                   .map((issue) => (
+//                     <Paper
+//                       key={issue.id}
+//                       variant="outlined"
+//                       sx={{ marginY: 1, padding: 2, backgroundColor: "#eef8f7" }}
+//                     >
+//                       <Typography gutterBottom>
+//                         <strong>Description:</strong> {issue.description || <em>No description</em>}
+//                       </Typography>
+//                       <Typography gutterBottom>
+//                         <strong>Status:</strong> {issue.status || "N/A"}
+//                       </Typography>
+//                       <Typography gutterBottom>
+//                         <strong>Department:</strong> {issue.department || "Not Assigned"}
+//                       </Typography>
+//                       <Box sx={{ display: "flex", gap: 2, alignItems: "center", marginTop: 1 }}>
+//                         <Select
+//                           size="small"
+//                           value={selectedIssue?.id === issue.id ? allocDept : ""}
+//                           onChange={(e) => {
+//                             setAllocDept(e.target.value);
+//                             setSelectedIssue(issue);
+//                           }}
+//                           displayEmpty
+//                         >
+//                           <MenuItem value="">
+//                             <em>Assign Department</em>
+//                           </MenuItem>
+//                           {departments.map((dep) => (
+//                             <MenuItem key={dep.id} value={dep.name}>
+//                               {dep.name}
+//                             </MenuItem>
+//                           ))}
+//                         </Select>
+//                         <Button
+//                           variant="contained"
+//                           color="success"
+//                           disabled={!allocDept}
+//                           onClick={() => handleAllocate(issue.id)}
+//                         >
+//                           Allocate
+//                         </Button>
+//                       </Box>
+//                     </Paper>
+//                   ))
+//               )}
+//             </DialogContent>
+//             <DialogActions>
+//               <Button variant="outlined" onClick={() => setOpenDialog(false)}>
+//                 Close
+//               </Button>
+//             </DialogActions>
+//           </>
+//         )}
+//       </Dialog>
+//     </Box>
+//   );
+// }
 import React, { useEffect, useState } from "react";
 import {
   Grid,
@@ -14,31 +369,27 @@ import {
   Select,
   Paper,
 } from "@mui/material";
-
-import EnhancedEncryptionIcon from "@mui/icons-material/EnhancedEncryption"; // sanitation and hygiene
-import LocalHospitalIcon from "@mui/icons-material/LocalHospital"; // medical
-import SchoolIcon from "@mui/icons-material/School"; // school and college
-import DirectionsBusIcon from "@mui/icons-material/DirectionsBus"; // public transport
-import OpacityIcon from "@mui/icons-material/Opacity"; // water
-import FlashOnIcon from "@mui/icons-material/FlashOn"; // power supply
-import LightbulbIcon from "@mui/icons-material/Lightbulb"; // street light
-import DeleteIcon from "@mui/icons-material/Delete"; // solid waste
-import RecyclingIcon from "@mui/icons-material/Recycling"; // recycling
-import PetsIcon from "@mui/icons-material/Pets"; // street dogs
-import SecurityIcon from "@mui/icons-material/Security"; // building safety
-import WavesIcon from "@mui/icons-material/Waves"; // pollution
-import NatureIcon from "@mui/icons-material/Nature"; // tree and green cover
-import WcIcon from "@mui/icons-material/Wc"; // public toilet
-
-// Creative icons for the requested categories
-import BugReportIcon from "@mui/icons-material/BugReport"; // mosquito maintenance
-import DomainIcon from "@mui/icons-material/Domain"; // infrastructure and maintenance
-import AltRouteIcon from "@mui/icons-material/AltRoute"; // roads & traffic
-import EmojiObjectsIcon from "@mui/icons-material/EmojiObjects"; // others
-import DirectionsCarIcon from "@mui/icons-material/DirectionsCar"; // pothole
-
+// import EnhancedEncryptionIcon from "@mui/icons-material/EnhancedEncryption";
+// import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
+// import SchoolIcon from "@mui/icons-material/School";
+// import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
+import OpacityIcon from "@mui/icons-material/Opacity";
+// import FlashOnIcon from "@mui/icons-material/FlashOn";
+import LightbulbIcon from "@mui/icons-material/Lightbulb";
+import DeleteIcon from "@mui/icons-material/Delete";
+// import RecyclingIcon from "@mui/icons-material/Recycling";
+import PetsIcon from "@mui/icons-material/Pets";
+// import SecurityIcon from "@mui/icons-material/Security";
+import WavesIcon from "@mui/icons-material/Waves";
+import NatureIcon from "@mui/icons-material/Nature";
+import WcIcon from "@mui/icons-material/Wc";
+import BugReportIcon from "@mui/icons-material/BugReport";
+// import DomainIcon from "@mui/icons-material/Domain";
+// import AltRouteIcon from "@mui/icons-material/AltRoute";
+import EmojiObjectsIcon from "@mui/icons-material/EmojiObjects";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import ChatIcon from "@mui/icons-material/Chat";
-
+import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 
@@ -49,136 +400,177 @@ const toKey = (s) =>
     .toLowerCase();
 
 const visualMap = {
-  pothole: { icon: <DirectionsCarIcon />, bg: "#fcf3c8" },
-  pollution: { icon: <WavesIcon />, bg: "#fdf3c5" },
-  powersupply: { icon: <FlashOnIcon />, bg: "#f6efbc" },
-  streetlight: { icon: <LightbulbIcon />, bg: "#fee2f0" },
-  sanitationandhygiene: { icon: <EnhancedEncryptionIcon />, bg: "#d2f2d6" },
-  solidwaste: { icon: <DeleteIcon />, bg: "#e9eef2" },
-  streetdogs: { icon: <PetsIcon />, bg: "#f7e2cc" },
-  mosquitomaintenance: { icon: <BugReportIcon />, bg: "#f6dfb9" },
-  publictoilet: { icon: <WcIcon />, bg: "#eadcf4" },
-  waterstagnation: { icon: <OpacityIcon />, bg: "#e8e1fa" },
-  treefallen: { icon: <NatureIcon />, bg: "#e4e7e7" },
-  stormwaterdrains: { icon: <DomainIcon />, bg: "#d7f2ee" },
-  brokenbin: { icon: <DeleteIcon />, bg: "#e9eef2" },
-  others: { icon: <EmojiObjectsIcon />, bg: "#e3e7e7" },
-  recycling: { icon: <RecyclingIcon />, bg: "#f1d3f2" },
-  medical: { icon: <LocalHospitalIcon />, bg: "#e0f7fa" },
-  schoolandcollege: { icon: <SchoolIcon />, bg: "#fdebd0" },
-  buildingsafety: { icon: <SecurityIcon />, bg: "#e8f5e9" },
-  publictransport: { icon: <DirectionsBusIcon />, bg: "#d6e6fa" },
+  pothole: { icon: <DirectionsCarIcon />, bg: "#fcf7de" },
+  streetlight: { icon: <LightbulbIcon />, bg: "#fdecef" },
+  publictoilet: { icon: <WcIcon />, bg: "#e9f6f2" },
+  garbage: { icon: <DeleteIcon />, bg: "#f6f6f6" },
+  streetdogs: { icon: <PetsIcon />, bg: "#f8ebed" },
+  mosquitomaintanence: { icon: <BugReportIcon />, bg: "#e5f3fc" },
+  waterstagnation: { icon: <OpacityIcon />, bg: "#e6f2ff" },
+  treefallen: { icon: <NatureIcon />, bg: "#dff0d8" },
+  others: { icon: <EmojiObjectsIcon />, bg: "#f0f0f0" },
+  stormwaterdrains: { icon: <WavesIcon />, bg: "#d3f4f1" },
+  brokenbin: { icon: <DeleteIcon />, bg: "#f6f6f6" },
+  // Fallback: any unmapped category uses a comment icon + a gentle background
+  default: { icon: <ChatIcon />, bg: "#f5f5f5" },
 };
+
 
 const getVisual = (name) => {
   const k = toKey(name);
-  return visualMap[k] || { icon: <ChatIcon />, bg: "#ececec" };
+  return visualMap[k] || visualMap.default;
 };
 
-const getUniqueCategories = (arr) => {
+const getUnique = (arr) => {
   const seen = new Set();
-  return arr.filter((cat) => {
-    const k = toKey(cat.name);
-    if (!k || seen.has(k)) return false;
+  return arr.filter((item) => {
+    const k = toKey(item.name);
+    if (seen.has(k) || !k) return false;
     seen.add(k);
     return true;
   });
 };
 
 export default function CategoryPage() {
-  const [categories, setCategories] = useState([]);
-  const [issues, setIssues] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [dialogType, setDialogType] = useState("");
-  const [categoryDetails, setCategoryDetails] = useState(null);
-  const [selectedIssue, setSelectedIssue] = useState(null);
-  const [allocDept, setAllocDept] = useState("");
+  const [categories, setCategories] = React.useState([]);
+  const [issues, setIssues] = React.useState([]);
+  const [departments, setDepartments] = React.useState([]);
+  const [openDialog, setOpenDialog] = React.useState(false);
+  const [dialogType, setDialogType] = React.useState("");
+  const [categoryDetails, setCategoryDetails] = React.useState(null);
+  const [selectedIssue, setSelectedIssue] = React.useState(null);
+  const [allocCategory, setAllocCategory] = React.useState({});
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchCategories = async () => {
+  React.useEffect(() => {
+    async function loadCategories() {
       const snap = await getDocs(collection(db, "category"));
-      let cats = snap.docs.map((doc) => ({
-        name: (doc.data().CategoryName || "").replace(/"/g, "").trim(),
-        department: (doc.data().Department || "").replace(/"/g, "").trim(),
+      const cats = snap.docs.map((doc) => ({
+        id: doc.id,
+        name: doc.data().CategoryName || "",
+        departmentId: doc.data().departmentId || "",
+        departmentEmail: doc.data().departmentEmail || "",
+        department: doc.data().department || "", // for backward compatibility
       }));
-      cats = getUniqueCategories(cats);
-      setCategories(cats);
-    };
-    fetchCategories();
-  }, []);
+      setCategories(getUnique(cats));
+    }
+    loadCategories();
 
-  useEffect(() => {
-    const fetchIssues = async () => {
+    async function loadIssues() {
       const snap = await getDocs(collection(db, "issues"));
       setIssues(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    };
-    fetchIssues();
+    }
+    loadIssues();
 
-    const fetchDepartments = async () => {
+    async function loadDepartments() {
       const snap = await getDocs(collection(db, "departments"));
-      setDepartments(snap.docs.map((doc) => doc.data().name));
-    };
-    fetchDepartments();
+      setDepartments(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    }
+    loadDepartments();
   }, []);
 
   const getCount = (catName) => {
-    const key = toKey(catName);
-    return issues.filter((issue) => toKey(issue.category) === key).length;
+    return issues.filter((issue) => toKey(issue.category) === toKey(catName)).length;
   };
 
-  const handleCategoryClick = (catObj) => {
+  const handleClick = (cat) => {
     setSelectedIssue(null);
-    setAllocDept("");
-    if (toKey(catObj.name) === "others") {
+    setAllocCategory({});
+    if (toKey(cat.name) === "others") {
       setDialogType("others");
       setOpenDialog(true);
     } else {
+      setCategoryDetails(cat);
       setDialogType("details");
-      setCategoryDetails(catObj);
       setOpenDialog(true);
     }
   };
 
-  const handleAllocate = async (issueId) => {
-    if (!allocDept) return;
-    await updateDoc(doc(db, "issues", issueId), { department: allocDept });
-    alert("Department Assigned!");
-    setAllocDept("");
-    setSelectedIssue(null);
-    setOpenDialog(false);
+  // Department dashboard navigation logic
+  const handleViewDeptDashboard = () => {
+    if (categoryDetails?.departmentId) {
+      navigate(`/dept-dashboard/${categoryDetails.departmentId}`);
+      setOpenDialog(false);
+      return;
+    }
+    if (categoryDetails?.departmentEmail) {
+      const found = departments.find(
+        (d) => (d.email || "").trim().toLowerCase() === categoryDetails.departmentEmail.trim().toLowerCase()
+      );
+      if (found) {
+        navigate(`/dept-dashboard/${found.id}`);
+        setOpenDialog(false);
+        return;
+      }
+    }
+    if (categoryDetails?.department) {
+      const found = departments.find(
+        (d) => (d.name || "").trim().toLowerCase() === categoryDetails.department.trim().toLowerCase()
+      );
+      if (found) {
+        navigate(`/dept-dashboard/${found.id}`);
+        setOpenDialog(false);
+        return;
+      }
+    }
+    alert("Department not found for this category. Please check data integrity.");
+  };
+
+  // Allocation logic for 'others' issues using category selection
+  const allocateOthersIssue = async (issueId) => {
+    const selectedCatId = allocCategory[issueId];
+    if (!selectedCatId) {
+      alert("Please select a category to allocate.");
+      return;
+    }
+    try {
+      const selectedCategory = categories.find(cat => cat.id === selectedCatId);
+      if (!selectedCategory) {
+        alert("Selected category not found.");
+        return;
+      }
+      await updateDoc(doc(db, "issues", issueId), {
+        category: selectedCategory.name,
+        department: selectedCategory.department || "",
+        departmentId: selectedCategory.departmentId || "",
+        departmentEmail: selectedCategory.departmentEmail || ""
+      });
+      alert("Category and department allocated to issue!");
+
+      // Clear selection & close dialog for this issue
+      setAllocCategory(prev => {
+        const copy = { ...prev };
+        delete copy[issueId];
+        return copy;
+      });
+
+      // Optionally, update local issues state to reflect change immediately
+      setIssues(prev =>
+        prev.map(issue =>
+          issue.id === issueId ? { ...issue, category: selectedCategory.name } : issue
+        )
+      );
+
+      setSelectedIssue(null);
+      setOpenDialog(false);
+    } catch (err) {
+      alert("Failed to allocate category: " + err.message);
+    }
   };
 
   return (
-    <Box sx={{ p: { xs: 1, md: 4 }, minHeight: "100vh", bgcolor: "#f7f7fa" }}>
-      <Box
-        sx={{
-          maxWidth: 1150,
-          mx: "auto",
-          my: 3,
-          borderRadius: 5,
-          p: { xs: 2, md: 5 },
-          bgcolor: "#fff",
-        }}
-      >
-        <Typography variant="h5" align="center" sx={{ fontWeight: 700, mb: 5 }}>
+    <Box sx={{ p: { xs: 1, md: 4 }, minHeight: "100vh" }}>
+      <Box sx={{ maxWidth: 1100, margin: "auto", p: { xs: 2, md: 5 }, bgcolor: "#fff", borderRadius: 3 }}>
+        <Typography variant="h5" align="center" sx={{ fontWeight: "bold", mb: 3 }}>
           Grievance Categories
         </Typography>
         <Grid container spacing={3} justifyContent="center">
           {categories.map((cat) => {
             const { icon, bg } = getVisual(cat.name);
             return (
-              <Grid
-                item
-                key={cat.name}
-                xs={12}
-                sm={6}
-                md={4}
-                lg={3}
-                sx={{ display: "flex", justifyContent: "center" }}
-              >
+              <Grid key={cat.id} item xs={12} sm={6} md={4} lg={3} sx={{ display: "flex", justifyContent: "center" }}>
                 <Card
-                  onClick={() => handleCategoryClick(cat)}
+                  onClick={() => handleClick(cat)}
                   sx={{
                     width: 170,
                     height: 190,
@@ -188,45 +580,22 @@ export default function CategoryPage() {
                     alignItems: "center",
                     justifyContent: "center",
                     cursor: "pointer",
+                    backgroundColor: "#fafdff",
+                    boxShadow: "0 4px 12px #ddeeff44",
+                    transition: "transform 0.2s, box-shadow 0.2s",
+                    "&:hover": { transform: "scale(1.05)", boxShadow: 6 },
                     px: 1,
-                    bgcolor: "#fafdff",
-                    boxShadow: "0 4px 12px #dde4dc44",
-                    transition: "transform 0.17s, box-shadow 0.19s",
-                    "&:hover": { boxShadow: 8, transform: "scale(1.055)" },
                   }}
                 >
-                  <Box
-                    sx={{
-                      background: bg,
-                      borderRadius: "50%",
-                      width: 60,
-                      height: 60,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      mb: 2,
-                      boxShadow: "0 4px 12px #eaece7",
-                    }}
-                  >
-                    {React.cloneElement(icon, {
-                      sx: { fontSize: 32, color: "#35787e" },
-                    })}
+                  <Box sx={{ backgroundColor: bg, borderRadius: "50%", width: 60, height: 60, display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 2, boxShadow: "0 4px 8px #bbb" }}>
+                    {React.cloneElement(icon, { sx: { fontSize: 32, color: "#357a7e" } })}
                   </Box>
                   <CardContent sx={{ p: 0, textAlign: "center" }}>
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        fontWeight: 700,
-                        fontSize: 17,
-                        textTransform: "lowercase",
-                        mb: 0.2,
-                        color: "#232b36",
-                      }}
-                    >
+                    <Typography variant="body1" sx={{ fontWeight: '700', fontSize: 18, textTransform: "capitalize", color: "#222" }}>
                       {cat.name}
                     </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      {`Issues: ${getCount(cat.name)}`}
+                    <Typography variant="body2" color="text.secondary">
+                      Issues: {getCount(cat.name)}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -241,17 +610,12 @@ export default function CategoryPage() {
           <>
             <DialogTitle>{categoryDetails?.name} Details</DialogTitle>
             <DialogContent>
-              <Typography sx={{ my: 2 }}>
-                <strong>Department:</strong> {categoryDetails?.department || "-"}
-              </Typography>
-              <Typography>
-                <strong>Total Issues:</strong> {getCount(categoryDetails?.name)}
-              </Typography>
+              <Typography gutterBottom><b>Department:</b> {categoryDetails?.department || "N/A"}</Typography>
+              <Typography gutterBottom><b>Total Issues:</b> {getCount(categoryDetails?.name)}</Typography>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setOpenDialog(false)} variant="contained" sx={{ bgcolor: "#6B8A47", color: "#fff" }}>
-                Close
-              </Button>
+              <Button onClick={handleViewDeptDashboard} variant="contained">View Department Dashboard</Button>
+              <Button onClick={() => setOpenDialog(false)} variant="outlined">Close</Button>
             </DialogActions>
           </>
         )}
@@ -260,48 +624,41 @@ export default function CategoryPage() {
           <>
             <DialogTitle>Unassigned "Others" Issues</DialogTitle>
             <DialogContent>
-              {issues.filter((i) => toKey(i.category) === "others").length === 0 && <Typography>No 'Others' issues found.</Typography>}
-              {issues.filter((i) => toKey(i.category) === "others").map((issue) => (
-                <Paper key={issue.id} variant="outlined" sx={{ p: 2, mb: 2, bgcolor: "#f4faf1", borderRadius: 4 }}>
-                  <Typography>
-                    <strong>Description:</strong> {issue.description || <i>No description</i>}
-                  </Typography>
-                  <Typography>
-                    <strong>Status:</strong> {issue.status || "-"}
-                  </Typography>
-                  <Typography>
-                    <strong>Department:</strong> {issue.department || "Not Assigned"}
-                  </Typography>
-                  <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
-                    <Select
-                      size="small"
-                      sx={{ minWidth: 200 }}
-                      value={selectedIssue?.id === issue.id ? allocDept : ""}
-                      onChange={(e) => {
-                        setAllocDept(e.target.value);
-                        setSelectedIssue(issue);
-                      }}
-                    >
-                      <MenuItem value="">
-                        <em>Assign Department</em>
-                      </MenuItem>
-                      {departments.map((dep) => (
-                        <MenuItem value={dep} key={dep}>
-                          {dep}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    <Button variant="contained" sx={{ bgcolor: "#6B8A47", color: "#fff" }} onClick={() => handleAllocate(issue.id)}>
-                      Allocate
-                    </Button>
-                  </Box>
-                </Paper>
-              ))}
+              {issues.filter(i => toKey(i.category) === "others").length === 0 ? (
+                <Typography>No 'Others' issues found.</Typography>
+              ) : (
+                issues.filter(i => toKey(i.category) === "others").map(issue => (
+                  <Paper key={issue.id} variant="outlined" sx={{ my: 1, p: 2, backgroundColor: "#eef7f7" }}>
+                    <Typography gutterBottom><b>Description:</b> {issue.description || <em>No description</em>}</Typography>
+                    <Typography gutterBottom><b>Status:</b> {issue.status || "N/A"}</Typography>
+                    <Typography gutterBottom><b>Category:</b> {issue.category || "Others"}</Typography>
+                    <Box sx={{ display: "flex", gap: 2, alignItems: "center", mt: 1 }}>
+                      <Select
+                        size="small"
+                        value={allocCategory[issue.id] || ""}
+                        onChange={e => setAllocCategory(prev => ({ ...prev, [issue.id]: e.target.value }))}
+                        displayEmpty
+                      >
+                        <MenuItem value=""><em>Assign Category</em></MenuItem>
+                        {categories.map(cat => (
+                          <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+                        ))}
+                      </Select>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        disabled={!allocCategory[issue.id]}
+                        onClick={() => allocateOthersIssue(issue.id)}
+                      >
+                        Allocate
+                      </Button>
+                    </Box>
+                  </Paper>
+                ))
+              )}
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setOpenDialog(false)} variant="contained" sx={{ bgcolor: "#6B8A47", color: "#fff" }}>
-                Close
-              </Button>
+              <Button variant="outlined" onClick={() => setOpenDialog(false)}>Close</Button>
             </DialogActions>
           </>
         )}

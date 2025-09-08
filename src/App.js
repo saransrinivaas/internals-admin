@@ -19,7 +19,7 @@ function App() {
         {/* ✅ Dashboards by role */}
         <Route path="/dashboard" element={<SuperAdminDashboard />} />
         <Route path="/dept-dashboard" element={<DepartmentDashboard />} />
-         {/* <Route path="/dept-dashboard/:deptId" element={<DepartmentDashboard />} /> */}
+         <Route path="/dept-dashboard/:deptId" element={<DepartmentDashboard />} />
         <Route path="/staff-dashboard" element={<StaffDashboard />} />
       </Routes>
     </Router>
