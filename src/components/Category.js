@@ -1,32 +1,43 @@
 import React, { useEffect, useState } from "react";
 import {
-  Grid, Card, CardContent, Typography, Box, Dialog,
-  DialogTitle, DialogContent, DialogActions, Button, MenuItem, Select, Paper
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  MenuItem,
+  Select,
+  Paper,
 } from "@mui/material";
 
-import EnhancedEncryptionIcon from '@mui/icons-material/EnhancedEncryption'; // sanitation and hygiene
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital';           // medical
-import SchoolIcon from '@mui/icons-material/School';                         // school and college
-import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';           // public transport
-import OpacityIcon from '@mui/icons-material/Opacity';                       // water
-import FlashOnIcon from '@mui/icons-material/FlashOn';                       // power supply
-import LightbulbIcon from '@mui/icons-material/Lightbulb';                   // street light
-import DeleteIcon from '@mui/icons-material/Delete';                         // solid waste
-import RecyclingIcon from '@mui/icons-material/Recycling';                   // recycling
-import PetsIcon from '@mui/icons-material/Pets';                             // street dogs
-import SecurityIcon from '@mui/icons-material/Security';                     // building safety
-import WavesIcon from '@mui/icons-material/Waves';                           // pollution
-import NatureIcon from '@mui/icons-material/Nature';                         // tree and green cover
-import WcIcon from '@mui/icons-material/Wc';                                 // public toilet
+import EnhancedEncryptionIcon from "@mui/icons-material/EnhancedEncryption"; // sanitation and hygiene
+import LocalHospitalIcon from "@mui/icons-material/LocalHospital"; // medical
+import SchoolIcon from "@mui/icons-material/School"; // school and college
+import DirectionsBusIcon from "@mui/icons-material/DirectionsBus"; // public transport
+import OpacityIcon from "@mui/icons-material/Opacity"; // water
+import FlashOnIcon from "@mui/icons-material/FlashOn"; // power supply
+import LightbulbIcon from "@mui/icons-material/Lightbulb"; // street light
+import DeleteIcon from "@mui/icons-material/Delete"; // solid waste
+import RecyclingIcon from "@mui/icons-material/Recycling"; // recycling
+import PetsIcon from "@mui/icons-material/Pets"; // street dogs
+import SecurityIcon from "@mui/icons-material/Security"; // building safety
+import WavesIcon from "@mui/icons-material/Waves"; // pollution
+import NatureIcon from "@mui/icons-material/Nature"; // tree and green cover
+import WcIcon from "@mui/icons-material/Wc"; // public toilet
 
 // Creative icons for the requested categories
-import BugReportIcon from '@mui/icons-material/BugReport';                   // mosquito maintenance
-import DomainIcon from '@mui/icons-material/Domain';                         // infrastructure and maintenance
-import AltRouteIcon from '@mui/icons-material/AltRoute';                     // roads & traffic
-import EmojiObjectsIcon from '@mui/icons-material/EmojiObjects';             // others
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';           // pothole
+import BugReportIcon from "@mui/icons-material/BugReport"; // mosquito maintenance
+import DomainIcon from "@mui/icons-material/Domain"; // infrastructure and maintenance
+import AltRouteIcon from "@mui/icons-material/AltRoute"; // roads & traffic
+import EmojiObjectsIcon from "@mui/icons-material/EmojiObjects"; // others
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar"; // pothole
 
-import ChatIcon from '@mui/icons-material/Chat';
+import ChatIcon from "@mui/icons-material/Chat";
 
 import { db } from "../firebase";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
@@ -47,13 +58,16 @@ const visualMap = {
   streetdogs: { icon: <PetsIcon />, bg: "#f7e2cc" },
   mosquitomaintenance: { icon: <BugReportIcon />, bg: "#f6dfb9" },
   publictoilet: { icon: <WcIcon />, bg: "#eadcf4" },
-  water: { icon: <OpacityIcon />, bg: "#e8e1fa" },
-  publictransport: { icon: <DirectionsBusIcon />, bg: "#d6e6fa" },
-  treeandgreencover: { icon: <NatureIcon />, bg: "#e4e7e7" },
-  infrastructureandmaintenance: { icon: <DomainIcon />, bg: "#d7f2ee" },
+  waterstagnation: { icon: <OpacityIcon />, bg: "#e8e1fa" },
+  treefallen: { icon: <NatureIcon />, bg: "#e4e7e7" },
+  stormwaterdrains: { icon: <DomainIcon />, bg: "#d7f2ee" },
+  brokenbin: { icon: <DeleteIcon />, bg: "#e9eef2" },
   others: { icon: <EmojiObjectsIcon />, bg: "#e3e7e7" },
-  roadsandtraffic: { icon: <AltRouteIcon />, bg: "#fff5ce" },
   recycling: { icon: <RecyclingIcon />, bg: "#f1d3f2" },
+  medical: { icon: <LocalHospitalIcon />, bg: "#e0f7fa" },
+  schoolandcollege: { icon: <SchoolIcon />, bg: "#fdebd0" },
+  buildingsafety: { icon: <SecurityIcon />, bg: "#e8f5e9" },
+  publictransport: { icon: <DirectionsBusIcon />, bg: "#d6e6fa" },
 };
 
 const getVisual = (name) => {
@@ -63,7 +77,7 @@ const getVisual = (name) => {
 
 const getUniqueCategories = (arr) => {
   const seen = new Set();
-  return arr.filter(cat => {
+  return arr.filter((cat) => {
     const k = toKey(cat.name);
     if (!k || seen.has(k)) return false;
     seen.add(k);
@@ -84,7 +98,7 @@ export default function CategoryPage() {
   useEffect(() => {
     const fetchCategories = async () => {
       const snap = await getDocs(collection(db, "category"));
-      let cats = snap.docs.map(doc => ({
+      let cats = snap.docs.map((doc) => ({
         name: (doc.data().CategoryName || "").replace(/"/g, "").trim(),
         department: (doc.data().Department || "").replace(/"/g, "").trim(),
       }));
@@ -97,20 +111,20 @@ export default function CategoryPage() {
   useEffect(() => {
     const fetchIssues = async () => {
       const snap = await getDocs(collection(db, "issues"));
-      setIssues(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setIssues(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     };
     fetchIssues();
 
     const fetchDepartments = async () => {
       const snap = await getDocs(collection(db, "departments"));
-      setDepartments(snap.docs.map(doc => doc.data().name));
+      setDepartments(snap.docs.map((doc) => doc.data().name));
     };
     fetchDepartments();
   }, []);
 
   const getCount = (catName) => {
     const key = toKey(catName);
-    return issues.filter(issue => toKey(issue.category) === key).length;
+    return issues.filter((issue) => toKey(issue.category) === key).length;
   };
 
   const handleCategoryClick = (catObj) => {
@@ -137,14 +151,16 @@ export default function CategoryPage() {
 
   return (
     <Box sx={{ p: { xs: 1, md: 4 }, minHeight: "100vh", bgcolor: "#f7f7fa" }}>
-      <Box sx={{
-        maxWidth: 1150,
-        mx: "auto",
-        my: 3,
-        borderRadius: 5,
-        p: { xs: 2, md: 5 },
-        bgcolor: "#fff"
-      }}>
+      <Box
+        sx={{
+          maxWidth: 1150,
+          mx: "auto",
+          my: 3,
+          borderRadius: 5,
+          p: { xs: 2, md: 5 },
+          bgcolor: "#fff",
+        }}
+      >
         <Typography variant="h5" align="center" sx={{ fontWeight: 700, mb: 5 }}>
           Grievance Categories
         </Typography>
@@ -152,8 +168,15 @@ export default function CategoryPage() {
           {categories.map((cat) => {
             const { icon, bg } = getVisual(cat.name);
             return (
-              <Grid item key={cat.name} xs={12} sm={6} md={4} lg={3}
-                sx={{ display: "flex", justifyContent: "center" }}>
+              <Grid
+                item
+                key={cat.name}
+                xs={12}
+                sm={6}
+                md={4}
+                lg={3}
+                sx={{ display: "flex", justifyContent: "center" }}
+              >
                 <Card
                   onClick={() => handleCategoryClick(cat)}
                   sx={{
@@ -169,7 +192,7 @@ export default function CategoryPage() {
                     bgcolor: "#fafdff",
                     boxShadow: "0 4px 12px #dde4dc44",
                     transition: "transform 0.17s, box-shadow 0.19s",
-                    "&:hover": { boxShadow: 8, transform: "scale(1.055)" }
+                    "&:hover": { boxShadow: 8, transform: "scale(1.055)" },
                   }}
                 >
                   <Box
@@ -182,10 +205,12 @@ export default function CategoryPage() {
                       alignItems: "center",
                       justifyContent: "center",
                       mb: 2,
-                      boxShadow: "0 4px 12px #eaece7"
+                      boxShadow: "0 4px 12px #eaece7",
                     }}
                   >
-                    {React.cloneElement(icon, { sx: { fontSize: 32, color: "#35787e" } })}
+                    {React.cloneElement(icon, {
+                      sx: { fontSize: 32, color: "#35787e" },
+                    })}
                   </Box>
                   <CardContent sx={{ p: 0, textAlign: "center" }}>
                     <Typography
@@ -195,10 +220,13 @@ export default function CategoryPage() {
                         fontSize: 17,
                         textTransform: "lowercase",
                         mb: 0.2,
-                        color: "#232b36"
+                        color: "#232b36",
                       }}
                     >
                       {cat.name}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      {`Issues: ${getCount(cat.name)}`}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -221,7 +249,9 @@ export default function CategoryPage() {
               </Typography>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setOpenDialog(false)} variant="contained" sx={{ bgcolor: "#6B8A47", color: "#fff" }}>Close</Button>
+              <Button onClick={() => setOpenDialog(false)} variant="contained" sx={{ bgcolor: "#6B8A47", color: "#fff" }}>
+                Close
+              </Button>
             </DialogActions>
           </>
         )}
@@ -230,9 +260,7 @@ export default function CategoryPage() {
           <>
             <DialogTitle>Unassigned "Others" Issues</DialogTitle>
             <DialogContent>
-              {issues.filter((i) => toKey(i.category) === "others").length === 0 && (
-                <Typography>No 'Others' issues found.</Typography>
-              )}
+              {issues.filter((i) => toKey(i.category) === "others").length === 0 && <Typography>No 'Others' issues found.</Typography>}
               {issues.filter((i) => toKey(i.category) === "others").map((issue) => (
                 <Paper key={issue.id} variant="outlined" sx={{ p: 2, mb: 2, bgcolor: "#f4faf1", borderRadius: 4 }}>
                   <Typography>
@@ -249,18 +277,21 @@ export default function CategoryPage() {
                       size="small"
                       sx={{ minWidth: 200 }}
                       value={selectedIssue?.id === issue.id ? allocDept : ""}
-                      onChange={(e) => { setAllocDept(e.target.value); setSelectedIssue(issue); }}
+                      onChange={(e) => {
+                        setAllocDept(e.target.value);
+                        setSelectedIssue(issue);
+                      }}
                     >
-                      <MenuItem value=""><em>Assign Department</em></MenuItem>
+                      <MenuItem value="">
+                        <em>Assign Department</em>
+                      </MenuItem>
                       {departments.map((dep) => (
-                        <MenuItem value={dep} key={dep}>{dep}</MenuItem>
+                        <MenuItem value={dep} key={dep}>
+                          {dep}
+                        </MenuItem>
                       ))}
                     </Select>
-                    <Button
-                      variant="contained"
-                      sx={{ bgcolor: "#6B8A47", color: "#fff" }}
-                      onClick={() => handleAllocate(issue.id)}
-                    >
+                    <Button variant="contained" sx={{ bgcolor: "#6B8A47", color: "#fff" }} onClick={() => handleAllocate(issue.id)}>
                       Allocate
                     </Button>
                   </Box>
@@ -268,7 +299,9 @@ export default function CategoryPage() {
               ))}
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setOpenDialog(false)} variant="contained" sx={{ bgcolor: "#6B8A47", color: "#fff" }}>Close</Button>
+              <Button onClick={() => setOpenDialog(false)} variant="contained" sx={{ bgcolor: "#6B8A47", color: "#fff" }}>
+                Close
+              </Button>
             </DialogActions>
           </>
         )}
