@@ -5,6 +5,7 @@ import SuperAdminDashboard from './components/SuperAdminDashboard';
 import DepartmentDashboard from './components/DepartmentDashboard';
 import UnifiedLogin from "./components/UnifiedLogin";
 import StaffDashboard from "./components/StaffDashboard";
+import PublicWorkDepartment from './components/PublicWorkDepartment';
 
 function App() {
   return (
@@ -21,6 +22,8 @@ function App() {
         <Route path="/dept-dashboard" element={<DepartmentDashboard />} />
          <Route path="/dept-dashboard/:deptId" element={<DepartmentDashboard />} />
         <Route path="/staff-dashboard" element={<StaffDashboard />} />
+        <Route path="/publicwork" element={<PublicWorkDepartment />} />
+
       </Routes>
     </Router>
   );

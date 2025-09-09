@@ -1,4 +1,3 @@
-
 // import React, { useState } from "react";
 // import { useNavigate } from "react-router-dom";
 // import { db } from "../firebase";
@@ -190,6 +189,13 @@ export default function UnifiedLogin() {
           navigate("/staff-dashboard");
           return;
         }
+        if (user.role === "PUBLIC_WORKS") {
+  console.log("Redirecting PUBLIC_WORKS user:", user); // Debug log
+  localStorage.setItem("publicworks", JSON.stringify(user));
+  navigate("/publicwork");
+  return;
+}
+
       }
 
       // 2. Check in departments collection (Dept Heads)
