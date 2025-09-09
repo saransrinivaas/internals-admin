@@ -16,12 +16,12 @@ import {
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 
+// Remove "End User" from roleOptions
 const roleOptions = [
   { value: "all", label: "All" },
   { value: "SUPER_ADMIN", label: "Super Admin" },
   { value: "STAFF", label: "Staff" },
   { value: "DEPT_HEAD", label: "Department Head" },
-  { value: "END_USER", label: "End User" },
 ];
 
 export default function Users({ users = [] }) {
@@ -30,9 +30,8 @@ export default function Users({ users = [] }) {
   // Filter users based on role filter selection
   const filteredUsers = users.filter((user) => {
     if (roleFilter === "all") return true;
-    // Accept either lower/upper case in backend storage for role
     return (
-      (user.role && user.role.toUpperCase()) === roleFilter.toUpperCase()
+      user.role && user.role.toUpperCase() === roleFilter.toUpperCase()
     );
   });
 
@@ -41,7 +40,6 @@ export default function Users({ users = [] }) {
       <Typography variant="h6" fontWeight="bold" gutterBottom>
         Users
       </Typography>
-
       {/* Role search filter */}
       <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 3 }}>
         <FormControl sx={{ minWidth: 200 }}>
@@ -60,7 +58,6 @@ export default function Users({ users = [] }) {
           </Select>
         </FormControl>
       </Box>
-
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -84,8 +81,6 @@ export default function Users({ users = [] }) {
                       ? "Department Head"
                       : user.role === "STAFF"
                       ? "Staff"
-                      : user.role === "END_USER" || user.role === "end_user"
-                      ? "End User"
                       : user.role || "N/A"}
                   </TableCell>
                   <TableCell>{user.department || "N/A"}</TableCell>
