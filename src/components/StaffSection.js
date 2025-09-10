@@ -127,7 +127,7 @@ export default function StaffSection({ departments = [] }) {
     <Box sx={{ maxWidth: 900, mx: "auto", bgcolor: "#f5f8f2", p: 3, borderRadius: 2 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h5">Staff Members</Typography>
-        <Button variant="contained" sx={{ backgroundColor: "#6B7A38" }} onClick={() => setOpen(true)}>
+        <Button variant="contained" sx={{ backgroundColor: "#3b5b27" }} onClick={() => setOpen(true)}>
           + Add Staff
         </Button>
       </Box>

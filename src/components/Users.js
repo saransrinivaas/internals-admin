@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 
+
 // Remove "End User" from roleOptions
 const roleOptions = [
   { value: "all", label: "All" },
@@ -29,6 +30,8 @@ export default function Users({ users = [] }) {
 
   // Filter users based on role filter selection
   const filteredUsers = users.filter((user) => {
+    // Exclude end_user role (case insensitive)
+    if (user.role && user.role.toLowerCase() === "end_user") return false;
     if (roleFilter === "all") return true;
     return (
       user.role && user.role.toUpperCase() === roleFilter.toUpperCase()
@@ -36,12 +39,12 @@ export default function Users({ users = [] }) {
   });
 
   return (
-    <Box sx={{ backgroundColor: "#fff", borderRadius: 2, padding: 3, boxShadow: 3 }}>
+    <Box className="users-card" sx={{ backgroundColor: "#fff", borderRadius: 2, padding: 3, boxShadow: 3 ,textAlign:"center"}}>
       <Typography variant="h6" fontWeight="bold" gutterBottom>
         Users
       </Typography>
       {/* Role search filter */}
-      <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 3 }}>
+      <Box className="users-filter" sx={{ display: "flex", gap: 2, alignItems: "center", mb: 3 }}>
         <FormControl sx={{ minWidth: 200 }}>
           <InputLabel id="role-filter-label">Role Filter</InputLabel>
           <Select

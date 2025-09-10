@@ -19,6 +19,7 @@ import * as XLSX from "xlsx";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 
+
 const OliveButton = styled(Button)({
   backgroundColor: "#6B8E47",
   color: "white",
@@ -173,9 +174,9 @@ export default function Reports() {
   };
 
   return (
-    <Box sx={{ maxWidth: 1050, marginX: "auto", marginTop: 6, paddingX: 2 }}>
+    <Box className="reports-page" sx={{ maxWidth: 1050, marginX: "auto", marginTop: 6, paddingX: 2 }}>
       <Typography variant="h4" sx={{ marginBottom: 4, fontWeight: "bold", textAlign: "center" }}>
-        Full Issue Report with User, Department & Staff Details
+        Full Report
       </Typography>
 
       <Box sx={{ display: "flex", justifyContent: "flex-end", marginBottom: 3 }}>
@@ -189,7 +190,7 @@ export default function Reports() {
           <CircularProgress />
         </Box>
       ) : (
-        <TableContainer component={Paper}>
+        <TableContainer component={Paper} className="reports-table">
           <Table stickyHeader>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#6B8E47" }}>

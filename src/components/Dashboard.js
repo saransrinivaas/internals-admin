@@ -110,9 +110,37 @@ export default function Dashboard() {
       legend: {
         display: true,
         position: "top",
-        labels: { font: { size: 15 } },
+        labels: { font: { size: 18, weight: "bold" }, color: "#2e471e" },
       },
-      tooltip: { enabled: true },
+      tooltip: {
+        enabled: true,
+        titleFont: { size: 18, weight: "bold" },
+        bodyFont: { size: 16 },
+      },
+      title: {
+        display: false,
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          font: { size: 18, weight: "bold" },
+          color: "#3b5b27",
+        },
+        title: {
+          display: false,
+        },
+      },
+      y: {
+        ticks: {
+          font: { size: 18, weight: "bold" },
+          color: "#3b5b27",
+        },
+        title: {
+          display: false,
+        },
+        beginAtZero: true,
+      },
     },
     interaction: {
       mode: "nearest",
@@ -121,6 +149,7 @@ export default function Dashboard() {
     },
   };
 
+  // Olive/green palette for pie chart
   const pieData = {
     labels: [
       t("verified") || "Verified",
@@ -131,7 +160,11 @@ export default function Dashboard() {
       {
         label: t("issueStatus") || "Issue Status",
         data: [verifiedIssues, inProgress, resolved],
-        backgroundColor: ["#FFA726", "#FFB300", "#388E3C"],
+        backgroundColor: [
+          "#6B8A47", // Olive green (verified)
+          "#A8C47E", // Lighter olive (in progress)
+          "#3b5b27", // Dark olive green (resolved)
+        ],
         hoverOffset: 30,
         borderWidth: 2,
         borderColor: "#fff",
@@ -151,9 +184,16 @@ export default function Dashboard() {
       legend: {
         display: true,
         position: "bottom",
-        labels: { font: { size: 15 } },
+        labels: { font: { size: 18, weight: "bold" }, color: "#2e471e" },
       },
-      tooltip: { enabled: true },
+      tooltip: {
+        enabled: true,
+        titleFont: { size: 18, weight: "bold" },
+        bodyFont: { size: 16 },
+      },
+      title: {
+        display: false,
+      },
     },
   };
 
@@ -162,14 +202,15 @@ export default function Dashboard() {
 
   const StatCardUI = ({ icon, label, value, color, secondary }) => (
     <Card
+      className="dash-stat-card"
       sx={{
-        minWidth: 120,
-        height: 90,
-        borderRadius: 4,
+        minWidth: 180,
+        height: 140,
+        borderRadius: 6,
         background: "#fff",
         boxShadow: "0 2px 20px #8BA47322",
-        mx: { xs: 1, md: 2 },
-        mb: { xs: 2, md: 0 },
+        mx: { xs: 2, md: 3 },
+        mb: { xs: 3, md: 0 },
         transition: "transform 0.3s",
         "&:hover": {
           transform: "scale(1.07)",
@@ -177,16 +218,16 @@ export default function Dashboard() {
       }}
       elevation={0}
     >
-      <CardContent sx={{ p: 1 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+      <CardContent sx={{ p: 2 }}>
+        <Box className="dash-stat-card__content" sx={{ display: "flex", alignItems: "center", gap: 3 }}>
           {icon}
           <Box>
-            <Typography variant="subtitle2" sx={{ color, fontWeight: 700 }}>
+            <Typography variant="h6" sx={{ color, fontWeight: 800, fontSize: 22 }}>
               {label}
             </Typography>
             <Typography
-              variant="h5"
-              sx={{ color: secondary || "#333", fontWeight: 800, mt: 0.5 }}
+              variant="h3"
+              sx={{ color: secondary || "#333", fontWeight: 900, mt: 1, fontSize: 36 }}
             >
               {value}
             </Typography>
@@ -197,16 +238,48 @@ export default function Dashboard() {
   );
 
   return (
-    <Box sx={{ bgcolor: "#f6f7f1", minHeight: "100vh" }}>
-      <Container maxWidth="md" sx={{ py: 4 }}>
-     
+    <Box
+      className="dashboard-page"
+      sx={{
+        bgcolor: "#f6f7f1",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "stretch",
+        justifyContent: "flex-start",
+        overflowX: "hidden",
+        // --- Hidden scrollbar for this area, while scroll stays possible
+        "&::-webkit-scrollbar": { display: "none" },
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+      }}
+    >
+      <Container
+        maxWidth="xl"
+        sx={{
+          py: { xs: 2, md: 4 },
+          px: { xs: 1, md: 4 },
+          height: "100vh",
+          width: "100%",
+          flexGrow: 1,
+          overflow: "auto",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-start",
+          "&::-webkit-scrollbar": { display: "none" }, // Hide scrollbar in container also
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
         <Box
+          className="dash-stats-row"
           sx={{
             display: "flex",
             justifyContent: "center",
             flexWrap: "wrap",
-            mb: 3,
-            gap: 3,
+            mb: 6,
+            gap: 4,
+            width: "100%",
           }}
         >
           <StatCardUI
@@ -230,50 +303,59 @@ export default function Dashboard() {
             value={verifiedIssues}
           />
           <StatCardUI
-            icon={<AutorenewIcon sx={{ color: "#FFB300", fontSize: 28 }} />}
+            icon={<AutorenewIcon sx={{ color: "#6B8A47", fontSize: 28 }} />}
             label={t("inProgress") || "In Progress"}
             value={inProgress}
           />
           <StatCardUI
-            icon={<CheckCircleIcon sx={{ color: "#388E3C", fontSize: 28 }} />}
+            icon={<CheckCircleIcon sx={{ color: "#6B8A47", fontSize: 28 }} />}
             label={t("resolved") || "Resolved"}
             value={resolved}
           />
         </Box>
 
-        <Grid container spacing={2} direction="column" alignItems="center">
-          <Grid item xs={12} sx={{ width: "100%", maxWidth: 600 }}>
+        <Grid
+          container
+          spacing={6}
+          direction="row"
+          alignItems="stretch"
+          justifyContent="center"
+          sx={{ width: "100%", flexGrow: 1 }}
+        >
+          <Grid item xs={12} md={6} sx={{ height: { xs: 340, md: 520 }, px: 3 }}>
             <Card
+              className="dash-chart-card"
               sx={{
                 bgcolor: "#fff",
-                borderRadius: 5,
-                boxShadow: "0 2px 12px #79a06419",
+                borderRadius: 6,
+                boxShadow: "0 2px 16px #79a06419",
+                height: "100%",
                 width: "100%",
-                maxWidth: 550,
-                mx: "auto",
-                p: { xs: 1, md: 2 },
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
               }}
             >
-              <CardContent>
+              <CardContent sx={{ flexGrow: 1 }}>
                 <Typography
-                  variant="h6"
+                  className="dash-chart-title"
+                  variant="h5"
                   fontWeight="bold"
                   sx={{
                     color: "#3b5d3a",
-                    mb: 2,
+                    mb: 3,
                     display: "flex",
                     alignItems: "center",
+                    fontSize: 28,
                   }}
                 >
-                  <BarChartIcon sx={{ mr: 1, color: "#6B8A47" }} />
+                  <BarChartIcon sx={{ mr: 2, color: "#6B8A47", fontSize: 32 }} />
                   {t("topCategories") || "Top Categories"}
                 </Typography>
                 <Box
                   sx={{
-                    overflow: "hidden",
-                    height: { xs: 100, sm: 140, md: 160 },
+                    height: { xs: 220, md: 380 },
                     width: "100%",
-                    mx: "auto",
                   }}
                 >
                   <Bar
@@ -286,38 +368,40 @@ export default function Dashboard() {
             </Card>
           </Grid>
 
-          <Grid item xs={12} sx={{ width: "100%", maxWidth: 600, mt: 4 }}>
+          <Grid item xs={12} md={6} sx={{ height: { xs: 340, md: 520 }, px: 3 }}>
             <Card
+              className="dash-chart-card"
               sx={{
                 bgcolor: "#fff",
-                borderRadius: 5,
-                boxShadow: "0 2px 12px #79a06419",
+                borderRadius: 6,
+                boxShadow: "0 2px 16px #79a06419",
+                height: "100%",
                 width: "100%",
-                maxWidth: 550,
-                mx: "auto",
-                p: { xs: 1, md: 2 },
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
               }}
             >
-              <CardContent>
+              <CardContent sx={{ flexGrow: 1 }}>
                 <Typography
-                  variant="h6"
+                  className="dash-chart-title"
+                  variant="h5"
                   fontWeight="bold"
                   sx={{
                     color: "#3b5d3a",
-                    mb: 2,
+                    mb: 3,
                     display: "flex",
                     alignItems: "center",
+                    fontSize: 28,
                   }}
                 >
-                  <PieChartIcon sx={{ mr: 1, color: "#6B8A47" }} />
+                  <PieChartIcon sx={{ mr: 2, color: "#6B8A47", fontSize: 32 }} />
                   {t("resolutionPerformance") || "Resolution Performance"}
                 </Typography>
                 <Box
                   sx={{
-                    overflow: "hidden",
-                    height: { xs: 100, sm: 140, md: 160 },
+                    height: { xs: 220, md: 380 },
                     width: "100%",
-                    mx: "auto",
                   }}
                 >
                   <Pie

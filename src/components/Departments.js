@@ -26,6 +26,7 @@ import {
   Checkbox
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { styled } from "@mui/material/styles";
 import {
   collection,
@@ -37,8 +38,9 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 
+
 const OliveButton = styled(Button)({
-  backgroundColor: "#6B8B2F",
+  backgroundColor: "#3b5b27", // Updated color
   color: "#fff",
   fontWeight: 700,
   padding: "10px 24px",
@@ -46,7 +48,7 @@ const OliveButton = styled(Button)({
   fontSize: "1rem",
   textTransform: "none",
   "&:hover": {
-    backgroundColor: "#557023",
+    backgroundColor: "#2e471e",
   },
 });
 
@@ -81,6 +83,9 @@ export default function Departments() {
   const [reassignMap, setReassignMap] = useState({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [departmentToDelete, setDepartmentToDelete] = useState(null);
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
+  const [reassignDept, setReassignDept] = useState(null);
+  const [showAssignedDialog, setShowAssignedDialog] = useState(false);
 
   useEffect(() => {
     fetchDepartments();
@@ -244,10 +249,62 @@ export default function Departments() {
     }
   };
 
+  const openReassignDialog = (dept) => {
+    setReassignDept(dept);
+    setReassignMap((prev) => ({
+      ...prev,
+      [dept.id]: getAssignedCategories(dept.id).map((c) => c.id),
+    }));
+    setReassignDialogOpen(true);
+  };
+
+  const closeReassignDialog = () => {
+    setReassignDialogOpen(false);
+    setReassignDept(null);
+  };
+
+  // Add this function to handle showing the dialog
+  const handleShowAssignedDialog = () => {
+    if (selectedCategories.length === 0) {
+      alert("Please assign at least one category.");
+      return;
+    }
+    setShowAssignedDialog(true);
+  };
+
+  const handleAddDepartment = async () => {
+    setShowAssignedDialog(false);
+    await handleCreateDepartment();
+  };
+
   return (
-    <Box sx={{ maxWidth: 950, mx: "auto", my: 4, px: 2 }}>
-      <Paper sx={{ p: 4, mb: 5, borderRadius: 4, bgcolor: "#f7faf7", boxShadow: 4 }}>
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: "bold", color: "#486025" }}>
+    <Box
+      className="departments-page"
+      sx={{
+        height: "100vh",
+        width: "100%",
+        bgcolor: "#f6f7f1",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        px: { xs: 1, md: 2 },
+        py: { xs: 2, md: 4 },
+      }}
+    >
+      <Paper
+        className="dept-create"
+        sx={{
+          p: 4,
+          mb: 6, // Increased margin-bottom for more space between containers
+          borderRadius: 4,
+          bgcolor: "#f7faf7",
+          boxShadow: 4,
+          width: "100%",
+          maxWidth: 600, // Reduced maxWidth for a smaller creation container
+        }}
+      >
+        <Typography variant="h5" sx={{ mb: 3, fontWeight: "bold", color: "#486025" ,textAlign: "center", letterSpacing: 1}}>
           Create Department
         </Typography>
         <TextField
@@ -318,200 +375,125 @@ export default function Departments() {
               </MenuItem>
             ))}
           </Select>
+          {/* Add button below dropdown */}
+          <Button
+            variant="contained"
+            disabled={isSaving}
+            onClick={handleShowAssignedDialog}
+            fullWidth
+            sx={{ fontWeight: "bold", bgcolor: "#3b5b27", color: "#fff", mt: 2, "&:hover": { bgcolor: "#2e471e" } }}
+          >
+            {isSaving ? "Creating..." : "Add"}
+          </Button>
         </FormControl>
         <Box sx={{ display: "flex", gap: 2 }}>
           <Button
-            variant="contained"
-            color="success"
-            disabled={isSaving}
-            onClick={handleCreateDepartment}
-            fullWidth
-            sx={{ fontWeight: "bold" }}
-          >
-            {isSaving ? "Creating..." : "Create Department"}
-          </Button>
-          <Button
             variant="outlined"
-            color="warning"
             onClick={() => setSelectedCategories([])}
-            sx={{ fontWeight: "bold", bgcolor: "#fffde7" }}
+            sx={{ fontWeight: "bold", bgcolor: "#fffde7", color: "#3b5b27", borderColor: "#3b5b27", "&:hover": { bgcolor: "#f7faf7", borderColor: "#2e471e", color: "#2e471e" } }}
           >
             Clear
-          </Button>
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={() => {
-              setNewDeptName("");
-              setNewDeptPassword("");
-              setSelectedCategories([]);
-            }}
-            sx={{ fontWeight: "bold" }}
-          >
-            Close
           </Button>
         </Box>
       </Paper>
 
       <Paper
+        className="dept-table"
         sx={{
-          p: 3,
+          p: 2,
           borderRadius: 4,
           bgcolor: "#f7faf7",
           boxShadow: 3,
-          maxWidth: 1100,
+          width: "100%",
+          maxWidth: "100%",
           mx: "auto",
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 700, color: "#5c713e", mb: 2 }}>
-          Existing Departments
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{
+            fontWeight: 700,
+            color: "#5c713e",
+            mb: 2,
+            textAlign: "center", // Center the text
+            letterSpacing: 1,
+          }}
+        >
+          EXISTING DEPARTMENTS
         </Typography>
-        <Box sx={{ overflowX: "auto" }}>
-          <Table sx={{ minWidth: 900 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: "#e5eedc" }}>
-                <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Department Head</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Assigned Categories</TableCell>
-                <TableCell align="center" sx={{ fontWeight: "bold", minWidth: 220 }}>
-                  Re-assign Categories
-                </TableCell>
-                <TableCell align="center" sx={{ fontWeight: "bold" }}>
-                  Actions
+        <Table
+          sx={{
+            width: "100%",
+            minWidth: 1500, // Increased minWidth for more columns
+            "& th, & td": {
+              padding: "8px 10px", // Reduce cell padding
+              fontSize: "0.97rem", // Slightly smaller font
+            },
+          }}
+        >
+          <TableHead>
+            <TableRow sx={{ bgcolor: "#d0e8c1" }}>
+              <TableCell sx={{ fontWeight: "bold", color: "#0c0a0aff" }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "#020202ff" }}>Department Head</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "#0e0b0bff" }}>Email</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "#050404ff" }}>Assigned Categories</TableCell>
+              <TableCell align="center" sx={{ fontWeight: "bold", color: "#110606ff" }}>
+                Actions
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {departments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ fontStyle: "italic", color: "#758f4e", py: 4 }}>
+                  No departments found.
                 </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {departments.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ fontStyle: "italic", color: "#758f4e", py: 4 }}>
-                    No departments found.
+            ) : (
+              departments.map((dept) => (
+                <TableRow key={dept.id}>
+                  <TableCell sx={{ fontWeight: 700 }}>{dept.name}</TableCell>
+                  <TableCell>{dept.departmentHead || "—"}</TableCell>
+                  <TableCell>{dept.email || "—"}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outlined"
+                      startIcon={<VisibilityIcon />}
+                      size="small"
+                      sx={{
+                        fontWeight: 700,
+                        bgcolor: "#eaf2d4",
+                        color: "#3b5b27",
+                        borderRadius: 2,
+                        ml: 1,
+                        mt: 1,
+                        borderColor: "#3b5b27",
+                        "&:hover": { bgcolor: "#d4ddb0", color: "#2e471e", borderColor: "#2e471e" },
+                      }}
+                      onClick={() => openReassignDialog(dept)}
+                    >
+                      View & Assign
+                    </Button>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Delete Department">
+                      <IconButton
+                        sx={{ color: "#3b5b27" }}
+                        onClick={() => openDeleteDialog(dept)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
-              ) : (
-                departments.map((dept) => {
-                  const assigned = getAssignedCategories(dept.id);
-                  const selected = reassignMap[dept.id] ?? assigned.map((c) => c.id);
-                  const reassignMenuOptions = getReassignOptions(dept.id);
-                  return (
-                    <TableRow key={dept.id}>
-                      <TableCell sx={{ fontWeight: 700 }}>{dept.name}</TableCell>
-                      <TableCell>{dept.departmentHead || "—"}</TableCell>
-                      <TableCell>{dept.email || "—"}</TableCell>
-                      <TableCell>
-                        {assigned.length === 0 ? (
-                          <em>None</em>
-                        ) : (
-                          assigned.map((cat) => (
-                            <Chip
-                              size="small"
-                              key={cat.id}
-                              label={cat.CategoryName || cat.name}
-                              sx={{
-                                bgcolor: "#e5f5cb",
-                                color: "#466b1a",
-                                fontWeight: 700,
-                                mr: 0.7,
-                                mb: 0.5,
-                                borderRadius: 3,
-                                fontSize: ".95rem",
-                                border: "1px solid #d4ddb0",
-                              }}
-                            />
-                          ))
-                        )}
-                      </TableCell>
-                      <TableCell align="center">
-                        <FormControl sx={{ minWidth: 180 }}>
-                          <Select
-                            multiple
-                            value={selected}
-                            size="small"
-                            onChange={(e) => {
-                              const vals = typeof e.target.value === "string"
-                                ? e.target.value.split(",")
-                                : e.target.value;
-                              handleAssignChange(dept.id, vals);
-                            }}
-                            input={<OutlinedInput />}
-                            renderValue={(selected) => (
-                              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                                {selected.length === 0 ? (
-                                  <Chip
-                                    label="None"
-                                    sx={{ bgcolor: "#eaf2d4", fontWeight: 600, color: "#758f4e" }}
-                                  />
-                                ) : (
-                                  selected.map((catId) => {
-                                    const cat = categories.find((c) => c.id === catId);
-                                    return (
-                                      <Chip
-                                        key={catId}
-                                        label={cat?.CategoryName || cat?.name || "Unnamed"}
-                                        sx={{
-                                          bgcolor: "#eaf2d4",
-                                          color: "#395c2e",
-                                          fontWeight: 600,
-                                          mr: 0.5,
-                                          mb: 0.5,
-                                          borderRadius: 2,
-                                          fontSize: ".95rem",
-                                          border: "1px solid #d4ddb0",
-                                        }}
-                                      />
-                                    );
-                                  })
-                                )}
-                              </Box>
-                            )}
-                          >
-                            {reassignMenuOptions.map((cat) => (
-                              <MenuItem key={cat.id} value={cat.id}>
-                                <Checkbox checked={selected.includes(cat.id)} />
-                                <Typography>{cat.CategoryName || cat.name || "Unnamed"}</Typography>
-                              </MenuItem>
-                            ))}
-                          </Select>
-                          <Button
-                            sx={{
-                              mt: 1,
-                              bgcolor: "#6B8A47",
-                              color: "#fff",
-                              fontWeight: 700,
-                              px: 2.2,
-                              py: 0.8,
-                              borderRadius: 3,
-                              "&:hover": {
-                                bgcolor: "#395c2e",
-                                boxShadow: "0px 5px 12px rgba(85,107,47,0.13)",
-                              },
-                            }}
-                            size="small"
-                            variant="contained"
-                            onClick={() => handleSaveReassign(dept.id)}
-                          >
-                            Save
-                          </Button>
-                        </FormControl>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Tooltip title="Delete Department">
-                          <IconButton
-                            color="error"
-                            onClick={() => openDeleteDialog(dept)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </Box>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </Paper>
 
       {/* Delete confirmation modal */}
@@ -523,9 +505,137 @@ export default function Departments() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={handleDeleteDepartment}>
+          <Button onClick={() => setDeleteDialogOpen(false)} sx={{ color: "#3b5b27" }}>
+            Cancel
+          </Button>
+          <Button color="error" variant="contained" onClick={handleDeleteDepartment} sx={{ bgcolor: "#3b5b27", color: "#fff", "&:hover": { bgcolor: "#2e471e" } }}>
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Re-assign categories dialog */}
+      <Dialog
+        open={reassignDialogOpen}
+        onClose={closeReassignDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Assigned Categories for {reassignDept?.name}
+        </DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel id="reassign-categories-label">Categories</InputLabel>
+            <Select
+              labelId="reassign-categories-label"
+              multiple
+              value={reassignDept ? reassignMap[reassignDept.id] || [] : []}
+              onChange={(e) => {
+                const vals = typeof e.target.value === "string"
+                  ? e.target.value.split(",")
+                  : e.target.value;
+                handleAssignChange(reassignDept.id, vals);
+              }}
+              input={<OutlinedInput label="Categories" />}
+              renderValue={(selected) => (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {selected.length === 0 ? (
+                    <Chip
+                      label="None"
+                      sx={{ bgcolor: "#eaf2d4", fontWeight: 600, color: "#758f4e" }}
+                    />
+                  ) : (
+                    selected.map((catId) => {
+                      const cat = categories.find((c) => c.id === catId);
+                      return (
+                        <Chip
+                          key={catId}
+                          label={cat?.CategoryName || cat?.name || "Unnamed"}
+                          sx={{
+                            bgcolor: "#eaf2d4",
+                            color: "#395c2e",
+                            fontWeight: 600,
+                            mr: 0.5,
+                            mb: 0.5,
+                            borderRadius: 2,
+                            fontSize: ".95rem",
+                            border: "1px solid #d4ddb0",
+                          }}
+                        />
+                      );
+                    })
+                  )}
+                </Box>
+              )}
+            >
+              {reassignDept &&
+                getReassignOptions(reassignDept.id).map((cat) => (
+                  <MenuItem key={cat.id} value={cat.id}>
+                    <Checkbox checked={reassignMap[reassignDept.id]?.includes(cat.id)} />
+                    <Typography>{cat.CategoryName || cat.name || "Unnamed"}</Typography>
+                  </MenuItem>
+                ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeReassignDialog} sx={{ color: "#3b5b27" }}>
+            Close
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              handleSaveReassign(reassignDept.id);
+              closeReassignDialog();
+            }}
+            disabled={!reassignDept}
+            sx={{ bgcolor: "#3b5b27", color: "#fff", "&:hover": { bgcolor: "#2e471e" } }}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Assigned Categories Dialog */}
+      <Dialog open={showAssignedDialog} onClose={() => setShowAssignedDialog(false)}>
+        <DialogTitle>Assigned Categories</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
+            {selectedCategories.map((id) => {
+              const cat = categories.find((c) => c.id === id);
+              return (
+                <Chip
+                  key={id}
+                  label={cat?.CategoryName || cat?.name || "Unnamed"}
+                  sx={{
+                    bgcolor: "#e4ecce",
+                    color: "#395d2d",
+                    fontWeight: 600,
+                    borderRadius: 4,
+                    fontSize: "0.97rem",
+                    mr: 0.6,
+                    mb: 0.5,
+                    border: "1px solid #d4ddb0",
+                  }}
+                />
+              );
+            })}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setShowAssignedDialog(false)}
+            sx={{ color: "#3b5b27" }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleAddDepartment}
+            sx={{ bgcolor: "#3b5b27", color: "#fff", "&:hover": { bgcolor: "#2e471e" } }}
+          >
+            Confirm & Create
           </Button>
         </DialogActions>
       </Dialog>

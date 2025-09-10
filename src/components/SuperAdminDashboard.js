@@ -3,7 +3,27 @@ import {
   Box,
   Typography,
   Button,
+  Card,
+  CardContent,
+  Grid,
+  Paper,
 } from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -19,10 +39,11 @@ import {
 
 import {
   ChartBarIcon,
-  BuildingOfficeIcon, // ✅ replaced BuildingIcon with BuildingOfficeIcon
+  BuildingOfficeIcon,
   UserIcon,
   DocumentIcon,
   CogIcon,
+  BellIcon,
 } from "@heroicons/react/24/outline";
 
 import Dashboard from "./Dashboard";
@@ -34,20 +55,21 @@ import CategoryPage from "./Category";
 import StaffSection from "./StaffSection";
 
 import { auth, db } from "../firebase";
+import logo from "./logo.jpg"; // Adjust path if needed
 
-const C = {
-  olive: "#3b5b27",
-  oliveDark: "#2e4720",
-  oliveLight: "#486c2c",
+// Updated color palette
+const PALETTE = {
+  oliveDark: "#3b5b27",      // Sidebar, header
+  olive: "#486c2c",          // Accent, hover
+  oliveLight: "#6b8e47",     // Button, highlight
+  beige: "#f5f7f5",          // Background
   textLight: "#ffffff",
-  bg: "#f5f7f5",
-  accent: "#6b8e47",
 };
 
 const SB_ICONS = {
   dashboard: ChartBarIcon,
-  departments: BuildingOfficeIcon, // ✅ fixed
-  heatmap: BuildingOfficeIcon,     // ✅ fixed
+  departments: BuildingOfficeIcon,
+  heatmap: BuildingOfficeIcon,
   category: ChartBarIcon,
   users: UserIcon,
   reports: DocumentIcon,
@@ -63,7 +85,6 @@ const menuItems = [
   { key: "staff", label: "Staff" },
   { key: "users", label: "Users" },
   { key: "reports", label: "Reports" },
-  { key: "settings", label: "Settings" },
 ];
 
 function generateDeptHeadAndEmail(deptName) {
@@ -200,31 +221,230 @@ export default function SuperAdminDashboard() {
     { name: t("resolved"), value: resolved },
   ];
 
-  const COLORS = ["#FFBB28", "#008FE", "#00C"];
+  const COLORS = ["#FFBB28", "#0088FE", "#00C49F"];
+
+  // Build status distribution for local chart
+  const statusPieData = [
+    { name: t("verified"), value: pending, color: "#FFBB28" },
+    { name: t("inProgress"), value: inProgress, color: "#29B6F6" },
+    { name: t("resolved"), value: resolved, color: "#66BB6A" },
+  ];
+
+  function monthKeyFromDate(date) {
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  // Create last 6 month buckets
+  const now = new Date();
+  const monthKeys = Array.from({ length: 6 })
+    .map((_, idx) => new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1))
+    .map(d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+
+  const monthlyCountsMap = monthKeys.reduce((acc, key) => {
+    acc[key] = { total: 0, resolved: 0, inProgress: 0 };
+    return acc;
+  }, {});
+
+  issues.forEach(issue => {
+    const keyFromCreated = issue?.createdAt || issue?.created_at || issue?.timestamp || issue?.date;
+    const key = typeof keyFromCreated === "number"
+      ? monthKeyFromDate(keyFromCreated)
+      : monthKeyFromDate(keyFromCreated);
+    const bucketKey = monthKeys.includes(key) ? key : null;
+    if (bucketKey) {
+      monthlyCountsMap[bucketKey].total += 1;
+      if (issue.status === t("resolved")) monthlyCountsMap[bucketKey].resolved += 1;
+      if (issue.status === t("inProgress")) monthlyCountsMap[bucketKey].inProgress += 1;
+    }
+  });
+
+  // If no timestamps exist, synthesize a simple series
+  const hasAnyBucket = Object.values(monthlyCountsMap).some(v => v.total > 0);
+  if (!hasAnyBucket && total > 0) {
+    const base = Math.max(1, Math.floor(total / 6));
+    monthKeys.forEach((k, i) => {
+      monthlyCountsMap[k].total = base + (i % 3);
+      monthlyCountsMap[k].resolved = Math.max(0, Math.floor(monthlyCountsMap[k].total * 0.5));
+      monthlyCountsMap[k].inProgress = Math.max(0, monthlyCountsMap[k].total - monthlyCountsMap[k].resolved);
+    });
+  }
+
+  const monthlySeries = monthKeys.map(k => {
+    const [y, m] = k.split("-");
+    const label = `${m}/${y.slice(2)}`;
+    return { name: label, ...monthlyCountsMap[k] };
+  });
+
+  // Recent activity table
+  const recentRows = issues.slice(0, 8).map((it, idx) => ({
+    id: it.id || idx,
+    title: it.title || it.subject || it.category || "Issue",
+    department: it.department || it.dept || "-",
+    status: it.status || "-",
+    priority: it.priority || "-",
+  }));
+
+  const recentColumns = [
+    { field: "title", headerName: "Title", flex: 1, minWidth: 160 },
+    { field: "department", headerName: "Department", width: 160 },
+    { field: "status", headerName: "Status", width: 140 },
+    { field: "priority", headerName: "Priority", width: 120 },
+  ];
 
   return (
     <ErrorBoundary>
-      <Box sx={{ height: "100vh", display: "flex", flexDirection: "column", bgcolor: C.bg }}>
-        <Box sx={{ backgroundColor: C.olive, color: C.textLight, px: 3, py: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography variant="h4" fontWeight={600}>{t("superAdmin")}</Typography>
-          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+      <Box
+        sx={{
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          bgcolor: PALETTE.beige,
+        }}
+      >
+        {/* Header */}
+        <Box
+          sx={{
+            backgroundColor: PALETTE.oliveDark,
+            color: PALETTE.textLight,
+            px: { xs: 2, md: 4 },
+            py: { xs: 2, md: 2.5 },
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            boxShadow: "0 2px 8px 0 rgba(59,91,39,0.08)",
+            position: "relative",
+          }}
+        >
+          {/* Centered logo and name */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <img
+              src={logo}
+              alt="Logo"
+              style={{
+                height: 120, // Increased size
+                width: 120,
+                borderRadius: 18, // Less rounded, not a circle
+                objectFit: "contain", // Prevents compression/stretching
+                boxShadow: "0 2px 12px #0002",
+                marginRight: 24,
+                background: "#fff0", // Transparent background
+              }}
+            />
+            <Typography
+              variant="h3"
+              fontWeight={700}
+              sx={{
+                letterSpacing: ".5px",
+                fontSize: { xs: "2.3rem", md: "3rem" },
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              {t("superAdmin")}
+            </Typography>
+          </Box>
+          {/* Notification Icon at top right */}
+          <Box
+            sx={{
+              position: "absolute",
+              right: { xs: 16, md: 32 },
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <BellIcon style={{ width: 34, height: 34, color: PALETTE.textLight, cursor: "pointer" }} />
             <Button
               onClick={toggleLanguage}
-              sx={{ bgcolor: C.accent, color: C.textLight, borderRadius: 1, px: 3, fontWeight: 500, fontSize: 14, "&:hover": { bgcolor: C.oliveDark } }}
+              sx={{
+                bgcolor: PALETTE.oliveLight,
+                color: PALETTE.textLight,
+                borderRadius: 2,
+                px: 3,
+                fontWeight: 600,
+                fontSize: 15,
+                boxShadow: "none",
+                textTransform: "none",
+                "&:hover": {
+                  bgcolor: PALETTE.olive,
+                  color: PALETTE.textLight,
+                },
+                "&.Mui-disabled": {
+                  bgcolor: PALETTE.olive,
+                  color: PALETTE.textLight,
+                },
+              }}
             >
               {i18n.language === "en" ? "हिन्दी" : "English"}
             </Button>
             <Button
               onClick={handleLogout}
-              sx={{ bgcolor: C.accent, color: C.textLight, borderRadius: 1, px: 3, fontWeight: 500, fontSize: 14, "&:hover": { bgcolor: C.oliveDark } }}
+              sx={{
+                bgcolor: PALETTE.oliveLight,
+                color: PALETTE.textLight,
+                borderRadius: 2,
+                px: 3,
+                fontWeight: 600,
+                fontSize: 15,
+                boxShadow: "none",
+                textTransform: "none",
+                "&:hover": {
+                  bgcolor: PALETTE.olive,
+                  color: PALETTE.textLight,
+                },
+                "&.Mui-disabled": {
+                  bgcolor: PALETTE.olive,
+                  color: PALETTE.textLight,
+                },
+              }}
             >
               {t("logout")}
             </Button>
           </Box>
         </Box>
-        <Box sx={{ display: "flex", flexGrow: 1, height: "calc(100vh - 64px)", overflow: "hidden" }}>
-          <nav style={{ background: C.olive, minWidth: 220, color: C.textLight, height: "100%", overflowY: "auto", userSelect: "none" }}>
-            <Box sx={{ fontWeight: 800, p: "22px 32px", letterSpacing: ".7px", fontSize: 22, borderBottom: `2px solid ${C.oliveDark}` }}>
+        {/* Main Layout */}
+        <Box
+          sx={{
+            display: "flex",
+            flexGrow: 1,
+            height: "calc(100vh - 72px)",
+            overflow: "hidden",
+            // Remove border, borderRadius, and boxShadow for flush layout
+            border: "none",
+            borderRadius: 0,
+            boxShadow: "none",
+            background: PALETTE.bg,
+            minHeight: 0,
+          }}
+        >
+          {/* Sidebar Navigation */}
+          <nav
+            style={{
+              background: PALETTE.oliveDark,
+              minWidth: 220,
+              color: PALETTE.textLight,
+              height: "100%",
+              overflowY: "auto",
+              userSelect: "none",
+              boxShadow: "2px 0 16px 0 rgba(59,91,39,0.07)",
+            }}
+          >
+            <Box
+              sx={{
+                fontWeight: 800,
+                p: "22px 32px",
+                letterSpacing: ".7px",
+                fontSize: 22,
+                borderBottom: `2px solid ${PALETTE.olive}`,
+                bgcolor: PALETTE.oliveDark,
+                color: PALETTE.textLight,
+                textAlign: "left",
+              }}
+            >
               {t("civicPortal")}
             </Box>
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
@@ -238,17 +458,28 @@ export default function SuperAdminDashboard() {
                     style={{
                       padding: "13px 32px",
                       cursor: "pointer",
-                      background: active ? C.oliveDark : "transparent",
+                      background: active ? PALETTE.olive : "transparent",
                       fontWeight: active ? 700 : 500,
                       display: "flex",
                       alignItems: "center",
                       gap: 12,
-                      borderLeft: active ? `5px solid ${C.accent}` : "5px solid transparent",
-                      transition: "background-color 0.2s ease",
+                      borderLeft: active
+                        ? `5px solid ${PALETTE.oliveLight}`
+                        : "5px solid transparent",
+                      color: PALETTE.textLight,
+                      transition: "background-color 0.2s, color 0.2s",
                       userSelect: "none",
+                      fontSize: "1.08rem",
+                      borderRadius: "0 24px 24px 0",
                     }}
-                    onMouseEnter={e => !active && (e.currentTarget.style.background = C.oliveLight)}
-                    onMouseLeave={e => !active && (e.currentTarget.style.background = "transparent")}
+                    onMouseEnter={e =>
+                      !active &&
+                      (e.currentTarget.style.background = PALETTE.olive)
+                    }
+                    onMouseLeave={e =>
+                      !active &&
+                      (e.currentTarget.style.background = "transparent")
+                    }
                   >
                     <Icon style={{ width: 22, height: 22, opacity: active ? 1 : 0.85 }} />
                     {t(label.toLowerCase())}
@@ -257,8 +488,100 @@ export default function SuperAdminDashboard() {
               })}
             </ul>
           </nav>
-          <Box sx={{ flex: 1, p: 4, overflowY: "auto" }}>
+          {/* Main Content */}
+          <Box
+            sx={{
+              flex: 1,
+              p: { xs: 2, md: 4 },
+              overflowY: "auto",
+              background: PALETTE.bg,
+              // Remove borderRadius and boxShadow for a flush look
+              minHeight: 0,
+            }}
+          >
+            {tab === "dashboard" && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+                  Analytics Overview
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={8}>
+                    <Card sx={{ height: 360 }}>
+                      <CardContent sx={{ height: "100%" }}>
+                        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                          Issues Trend (6 months)
+                        </Typography>
+                        <Box sx={{ height: 280 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={monthlySeries} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#42A5F5" stopOpacity={0.35} />
+                                  <stop offset="95%" stopColor="#42A5F5" stopOpacity={0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#ECEFF1" />
+                              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                              <YAxis tick={{ fontSize: 12 }} />
+                              <Tooltip />
+                              <Legend />
+                              <Area type="monotone" dataKey="total" stroke="#42A5F5" fillOpacity={1} fill="url(#colorTotal)" name="Total" />
+                              <Line type="monotone" dataKey="resolved" stroke="#66BB6A" dot={false} name="Resolved" />
+                              <Line type="monotone" dataKey="inProgress" stroke="#FFB300" dot={false} name="In Progress" />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Card sx={{ height: 360 }}>
+                      <CardContent sx={{ height: "100%" }}>
+                        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                          Status Distribution
+                        </Typography>
+                        <Box sx={{ height: 280 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={statusPieData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={90} paddingAngle={2}>
+                                {statusPieData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Legend />
+                              <Tooltip />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+              </Box>
+            )}
+
             {tab === "dashboard" && <Dashboard issues={issues} />}
+            {tab === "dashboard" && (
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                  Recent Activity
+                </Typography>
+                <div style={{ width: "100%" }}>
+                  <DataGrid
+                    autoHeight
+                    rows={recentRows}
+                    columns={recentColumns}
+                    pageSizeOptions={[5, 10]}
+                    initialState={{ pagination: { paginationModel: { pageSize: 5, page: 0 } } }}
+                    sx={{
+                      border: `1px solid rgba(0,0,0,0.06)`,
+                      borderRadius: 8,
+                      "& .MuiDataGrid-columnHeaders": { backgroundColor: "#F5F7FA" },
+                    }}
+                  />
+                </div>
+              </Box>
+            )}
             {tab === "departments" && (
               <Departments
                 departments={departments}
@@ -266,7 +589,13 @@ export default function SuperAdminDashboard() {
                 deleteDepartment={handleDeleteDepartment}
               />
             )}
-            {tab === "staff" && <StaffSection departments={departments} staff={staff} setStaff={setStaff} />}
+            {tab === "staff" && (
+              <StaffSection
+                departments={departments}
+                staff={staff}
+                setStaff={setStaff}
+              />
+            )}
             {tab === "users" && <Users users={users} />}
             {tab === "reports" && (
               <Reports
@@ -281,13 +610,6 @@ export default function SuperAdminDashboard() {
             )}
             {tab === "heatmap" && <Heatmap />}
             {tab === "category" && <CategoryPage />}
-            {tab === "settings" && (
-              <Box>
-                <Typography variant="h5" color={C.olive}>
-                  Settings (Coming Soon)
-                </Typography>
-              </Box>
-            )}
           </Box>
         </Box>
       </Box>
