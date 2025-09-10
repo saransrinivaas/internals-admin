@@ -1,6 +1,7 @@
 // DepartmentDashboard.jsx
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
+import GlobalChat from "./GlobalChat";
 import {
   collection,
   query,
@@ -1167,6 +1168,7 @@ issues.forEach(issue => {
           </Box>
         </Box>
       </Box>
+      <GlobalChat user={{ id: dept.id, name: dept.name }} />
     </Box>
   );
 }

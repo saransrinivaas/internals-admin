@@ -9,6 +9,7 @@ import {
   Paper,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import GlobalChat from "./GlobalChat";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -613,6 +614,7 @@ export default function SuperAdminDashboard() {
           </Box>
         </Box>
       </Box>
+        <GlobalChat user={{ id: "superadmin", name: "Super Admin" }} />
     </ErrorBoundary>
   );
 }
